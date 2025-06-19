@@ -7,7 +7,8 @@ from PIL import Image
 from torchvision import transforms
 from transformers import CLIPImageProcessor
 from torch.utils.data import Dataset
-import facer
+from utils import get_datamaps
+import json
 
 
 class MyDataset(Dataset):
@@ -35,21 +36,28 @@ class MyDataset(Dataset):
         if controller_tfms is None:
             controller_tfms = CLIPImageProcessor()
         self.controller_transforms = controller_tfms
-
-        self.face_detector = None
-        self.face_attr = None
-        if use_t2i:
-            self.face_detector = facer.face_detector("retinaface/mobilenet", device="cpu")
-            self.face_attr = facer.face_attr("farl/celeba/224", device="cpu")
+        self.use_t2i = use_t2i
 
     def __getitem__(self, idx):
         item = self.data.iloc[idx]
-        text = item["caption"]
-        image_file = item["file_name"]
+        # these entries would change based on the dataset passed through FRESCO and the chosen SGG model: for example the caption would be taken from
+        # the extended scene graph obtained by processing FRESCO's identikit
+        image_file = item[0]
+
+        # TODO
+        # here the image should be passed to FRESCO to generate the corresponding identikit;
+        # then should be passed to the SGG model to generate the triplets;
+        # finally SGfy has to be called to generate the extended scene graph.
+
+        # load the extended scene graph file in a dictionary
+        with open("data/input/extended_sg/extended_sg_" + image_file.split(".")[0] + ".json") as f:
+            ext_sg = json.load(f)
+
+        text = ext_sg["scene"]["single_action_caption"]
 
         # read image
         # raw_image = Image.open(os.path.join(self.image_root_path, image_file))
-        raw_image = Image.open(image_file)
+        raw_image = Image.open("data/input/images/" + image_file)
         image = self.transform(raw_image.convert("RGB"))
         clip_image = self.controller_transforms(images=raw_image, return_tensors="pt").pixel_values
 
@@ -73,31 +81,12 @@ class MyDataset(Dataset):
         ).input_ids
 
         res = None
-        if self.face_detector is not None:
+        if self.use_t2i is not None:
             raw_image = ((image / 2 + 0.5) * 255).unsqueeze(0)
             with torch.inference_mode():
                 shape = image.shape[-1]
                 latent_shape = shape // 8
-                res = torch.zeros((1, 41, latent_shape, latent_shape))
-                faces = self.face_detector(raw_image)
-                if "image_ids" not in faces:
-                    print(f"No face detected - {image_file}")
-                else:
-                    faces = self.face_attr(raw_image, faces)
-                    ids = faces["image_ids"].tolist()
-                    rects = faces["rects"]
-                    points = faces["points"]
-                    attrs = faces["attrs"]  # TODO:Change fix size to variable size
-                    # res = torch.zeros((len(set(ids)), 41, latent_shape, latent_shape))
-                    for n, i in enumerate(ids):
-                        p = torch.nn.functional.hardtanh(points[n] * (latent_shape - 1) // shape, 0,
-                                                         latent_shape - 1).to(int)
-                        # assert p.max().item() < 64
-                        # assert p.min().item() >= 0
-                        r = torch.nn.functional.hardtanh(rects[n] * latent_shape // shape, 0, latent_shape).to(int)
-                        res[i, -1, p[:, 1], p[:, 0]] = 1
-                        res[i, :40, max(r[1], 0):min(r[3], 64), max(r[0], 0):min(r[2], 64)] = attrs[n].repeat(
-                            min(r[3], 64) - max(r[1], 0), min(r[2], 64) - max(r[0], 0), 1).permute(2, 0, 1)
+                res = get_datamaps(ext_sg, latent_shape, latent_shape)
 
         return {
             "image": image,

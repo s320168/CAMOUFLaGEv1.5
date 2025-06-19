@@ -1,8 +1,8 @@
 import itertools
 import os
 from pathlib import Path
+import json
 
-import facer
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -19,7 +19,7 @@ from diffusers import AutoencoderKL, DDPMScheduler, UNet2DConditionModel, DPMSol
 from diffusers.utils import is_wandb_available
 from ip_adapter.utils import is_torch2_available, init_ip_adapter, FacerAdapter
 from pipelines import StableDiffusionImg2ImgPipelineRes
-from utils import parse_args, set_requires_grad, set_device_dtype, IPAdapterPlusFT
+from utils import parse_args, set_requires_grad, set_device_dtype, IPAdapterPlusFT, get_datamaps
 
 if is_torch2_available():
     from diffusers.models.attention_processor import AttnProcessor2_0 as AttnProcessor
@@ -56,6 +56,7 @@ def main():
     unet = UNet2DConditionModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="unet")
     unet.set_attn_processor(AttnProcessor())
     image_encoder = CLIPVisionModelWithProjection.from_pretrained(args.image_encoder_path)
+    # here would be added FRESCO and the selected SGG model loadings
 
     vae_path = (
         args.pretrained_model_name_or_path
@@ -247,7 +248,7 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
     )
     pipeline.scheduler = DPMSolverMultistepScheduler.from_config(pipeline.scheduler.config,
                                                                  algorithm_type="sde-dpmsolver++",
-                                                                 use_karras_sigmas='true')
+                                                                 use_karras_sigmas=True)
 
     pipeline = pipeline.to(accelerator.device)
     pipeline.set_progress_bar_config(disable=True)
@@ -277,9 +278,8 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
 
     image_logs = []
 
-    face_detector = facer.face_detector("retinaface/mobilenet", device=accelerator.device)
-    face_attr = facer.face_attr("farl/celeba/224", device=accelerator.device)
     for validation_prompt, validation_image in zip(validation_prompts, validation_images):
+        image_file = validation_image
         validation_image = Image.open(validation_image).convert("RGB")
 
         images = []
@@ -292,36 +292,27 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
                     raw_image = ((tfms(validation_image) / 2 + 0.5) * 255).unsqueeze(0).to(accelerator.device)
                     shape = raw_image.shape[-1]
                     latent_shape = shape // 8
-                    res = torch.zeros((1, 41, latent_shape, latent_shape))
-                    faces = face_detector(raw_image)
-                    if "image_ids" not in faces:
-                        res = None
-                    else:
-                        faces = face_attr(raw_image, faces)
-                        ids = faces["image_ids"].tolist()
-                        rects = faces["rects"]
-                        points = faces["points"]
-                        attrs = faces["attrs"]  # TODO:Change fix size to variable size
-                        for n, i in enumerate(ids):
-                            p = torch.nn.functional.hardtanh(points[n] * (latent_shape - 1) // shape, 0,
-                                                             latent_shape - 1).to(int)
-                            r = torch.nn.functional.hardtanh(rects[n] * latent_shape // shape, 0, latent_shape).to(int)
-                            res[i, -1, p[:, 1], p[:, 0]] = 1
-                            res[i, :40, max(r[1], 0):min(r[3], 64), max(r[0], 0):min(r[2], 64)] = attrs[n].repeat(
-                                min(r[3], 64) - max(r[1], 0), min(r[2], 64) - max(r[0], 0), 1).permute(2, 0, 1)
+                    # TODO: pass image to FRESCO and to the SGG model
+
+                    # load the extended scene graph file in a dictionary
+                    with open("data/input/extended_sg/extended_sg_" + image_file.split(".")[0] + ".json") as f:
+                        ext_sg = json.load(f)
+                    res = get_datamaps(ext_sg, latent_shape, latent_shape)
+                    
             tmp = ip_model.generate(pil_image=validation_image, num_samples=args.num_validation_images,
                                     num_inference_steps=30, prompt=validation_prompt, seed=args.seed,
                                     negative_prompt=token, image=validation_image, strength=0.9,
                                     scale=0.8 if len(validation_prompt) > 1 else 1.0,
                                     down_block_additional_residuals=None if res is None else ipAdapterTrainer.t2i_adapter(
                                         res.to(accelerator.device)))
+            print(type(tmp))
+            print(tmp)
 
         images.extend(tmp)
 
         image_logs.append(
             {"validation_image": validation_image, "images": images, "validation_prompt": validation_prompt}
         )
-    del face_detector, face_attr
     for tracker in accelerator.trackers:
         if tracker.name == "tensorboard":
             for log in image_logs:

@@ -134,9 +134,6 @@ def main(crop_path, method, file_index, batch_size, base_model_path, vae_model_p
     ip_model = IPAdapterPlusFT(pipe, image_encoder=image_encoder_path, controller_transforms=None, image_proj=ip_ckpt,
                                ip_adapter=ip_ckpt, t2i_adapter=ip_ckpt if not skip_t2i else None, device=device)
 
-    if ip_model.t2i_adapter is not None:
-        face_attr = facer.face_attr("farl/celeba/224", device=device)
-
     ip_model.to(device, torch.float16)
 
     img_paths = list(f for f in Path(in_folder).glob("**/*.*"))
@@ -202,7 +199,6 @@ def main(crop_path, method, file_index, batch_size, base_model_path, vae_model_p
                 ids = [0 for _ in range(len(faces))]
                 rects = torch.stack([torch.tensor(f["bbox"]) for f in faces])
                 points = torch.stack([torch.tensor(f["kps"]) for f in faces])
-                faces = face_attr(raw_image, {'rects': rects, "points": points, "image_ids": ids})
                 attrs = faces["attrs"]
                 # torch.save(attrs, out / "attrs.pt")
                 for n, i in enumerate(ids):

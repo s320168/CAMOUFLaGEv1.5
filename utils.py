@@ -2,6 +2,7 @@ import argparse
 import os
 import time
 from pathlib import Path
+import flatdict
 
 import cv2
 import numpy as np
@@ -472,3 +473,46 @@ class catchtime(object):
     def __exit__(self, type, value, traceback):
         self.t = time.time() - self.t
         print(self.t)
+
+def get_head_pose_datamap(var: dict, pos: dict, orig_w: int, orig_h: int, w: int, h: int) -> torch.Tensor:
+    res = torch.zeros((w, h))
+    x0 = int(pos["x0"]/orig_w*w)
+    y0 = int(pos["y0"]/orig_h*h)
+    x1 = int(pos["x1"]/orig_w*w)
+    y1 = int(pos["y1"]/orig_h*h)
+    yaw = int(var["yaw"] + 180)
+    pitch = int(var["pitch"] + 180)
+    roll = int(var["roll"] + 180)
+    res[y0:y1+1, x0:x1+1] = yaw + 1000 * pitch + 1000000 * roll
+    return res
+
+def get_gaze_dir_datamap(var: dict, orig_h: int, orig_w: int, h: int, w: int) -> torch.Tensor:
+    res = torch.zeros((h, w))
+    x1 = int(var["eye_pos"]["x1"]/orig_w*w)
+    y1 = int(var["eye_pos"]["y1"]/orig_h*h)
+    x2 = int(var["eye_pos"]["x2"]/orig_w*w)
+    y2 = int(var["eye_pos"]["y2"]/orig_h*h)
+    yaw = (var["yaw"] + 180) * 100
+    pitch = (var["pitch"] + 180) * 100
+    res[y1, x1] = res[y2, x2] = yaw + 100000 * pitch
+    return res
+
+def get_datamaps(extended_sg: dict, h: int, w: int):
+    h //= 8
+    w //= 8
+    orig_h = extended_sg["scene"]["dimensions"]["height"]
+    orig_w = extended_sg["scene"]["dimensions"]["width"]
+    features = torch.zeros((1, 59, h, w))
+    for o in extended_sg["objects"]:
+        if o["type"] != "human face":
+            continue
+        pos = o["position"]
+        head = o["attributes"].pop("head_pose")
+        gaze = o["attributes"].pop("gaze_direction")
+        obj = flatdict.FlatDict(o["attributes"])
+        attr_keys = obj.keys()
+        for i, k in enumerate(attr_keys):
+            features[0, i, int(pos["y0"]/orig_h*h):int(pos["y1"]/orig_h*h+1), int(pos["x0"]/orig_w*w):int(pos["x1"]/orig_w*w+1)] += obj[k]
+        features[0: -2] += get_head_pose_datamap(head, pos, orig_h, orig_w, h, w)
+        features[0, -1] += get_gaze_dir_datamap(gaze, orig_h, orig_w, h, w)
+    return features

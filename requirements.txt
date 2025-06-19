@@ -18,9 +18,9 @@ safetensors==0.4.0
 scikit-image==0.22.0
 scikit-learn==1.3.2
 scipy==1.11.4
-torch==2.1.1+cu121
-torchaudio==2.1.1+cu121
-torchvision==0.16.1+cu121
+torch==2.1.1+cu122
+torchaudio==2.1.1+cu122
+torchvision==0.16.1+cu122
 tqdm==4.66.1
 transformers==4.35.2
 wakepy==0.7.2
