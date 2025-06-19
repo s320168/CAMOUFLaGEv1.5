@@ -1,0 +1,39 @@
+threshold: # task specific thresholds
+# make it possible to have relationonly when having at least this amount of objects
+  min_objects_for_relations: 2
+  # iou lower limit to assert two matching bounding boxes
+  bbox_match: 0.75
+  # percentage of pixels of a mask that a bounding box must include to be considered completely contained
+  completely_contained: 0.95
+  # iou lower limit to consider two bounding boxes depth relation
+  depth_overlap: 0.0
+  # limit over which consider depth ratio between objects as relevant
+  depth_upper_limit: 1.1
+  # limit under which consider depth ratio between objects as relevant
+  depth_lower_limit: 0.9
+  # lower limit to consider relative position between objects as relevant
+  positional_relation_tolerance: 0.5
+
+filesystem: # paths containing the used data
+  # directory containing identikits produced by FRESCO
+  input: ../data/input/FRESCO/identikits/
+  # directory containing panoptic segmentation of the images
+  panoptic: ../data/input/FRESCO/seg_coco/
+  # directory containing depth estimation of the images
+  depth: ../data/input/depth/
+  # directory containing scene graphs of the images
+  scene_graph: ../data/input/incomplete_sg/
+  # directory containing the extended scene graphs
+  output: ../data/input/extended_sg/
+
+filetype: # file type of data used
+  # input identikit file type
+  input: .json
+  # depth file type
+  depth: .png
+  # panoptic segmentation file type
+  panoptic: .png
+  # scene graph file type
+  scene_graph: .json
+  # output extended scene graph file type
+  output: .json
