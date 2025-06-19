@@ -1,0 +1,417 @@
+{
+ "scene": {
+  "single_action_caption": "A woman and a young girl posing for a picture together with other people in the background at a park.",
+  "indoor-outdoor": "outdoor",
+  "color_palette": [
+   [
+    [
+     145,
+     106,
+     85
+    ],
+    0.19302097158542472
+   ],
+   [
+    [
+     39,
+     29,
+     30
+    ],
+    0.14431633083976833
+   ],
+   [
+    [
+     98,
+     68,
+     53
+    ],
+    0.130863145511583
+   ],
+   [
+    [
+     73,
+     82,
+     96
+    ],
+    0.12651008988899615
+   ],
+   [
+    [
+     163,
+     135,
+     125
+    ],
+    0.12477753981660232
+   ],
+   [
+    [
+     199,
+     199,
+     114
+    ],
+    0.11341604578909266
+   ],
+   [
+    [
+     178,
+     169,
+     185
+    ],
+    0.09375377051158301
+   ],
+   [
+    [
+     240,
+     229,
+     216
+    ],
+    0.07334210605694981
+   ]
+  ],
+  "dimensions": {
+   "width": 1024,
+   "height": 1036
+  }
+ },
+ "objects": [
+  {
+   "id": 0,
+   "type": "cup",
+   "position": {
+    "x0": 731,
+    "y0": 752,
+    "x1": 936,
+    "y1": 982
+   },
+   "depth": 244.82
+  },
+  {
+   "id": 1,
+   "type": "person",
+   "position": {
+    "x0": 442,
+    "y0": 235,
+    "x1": 1020,
+    "y1": 1031
+   },
+   "depth": 218.59
+  },
+  {
+   "id": 2,
+   "type": "person",
+   "position": {
+    "x0": 22,
+    "y0": 35,
+    "x1": 675,
+    "y1": 1033
+   },
+   "depth": 207.29
+  },
+  {
+   "id": 3,
+   "type": "person",
+   "position": {
+    "x0": 519,
+    "y0": 2,
+    "x1": 834,
+    "y1": 370
+   },
+   "depth": 65.38
+  },
+  {
+   "id": 4,
+   "type": "footwear, sneakers",
+   "position": {
+    "x0": 912,
+    "y0": 420,
+    "x1": 992,
+    "y1": 460
+   },
+   "depth": 39.77
+  },
+  {
+   "id": 5,
+   "type": "person",
+   "position": {
+    "x0": 793,
+    "y0": 1,
+    "x1": 1023,
+    "y1": 465
+   },
+   "depth": 15.34
+  },
+  {
+   "id": 6,
+   "type": "human face",
+   "position": {
+    "x0": 352,
+    "y0": 173,
+    "x1": 601,
+    "y1": 505
+   },
+   "depth": 235.16,
+   "attributes": {
+    "face_attributes_scores": {
+     "5_o_Clock_Shadow": 0.001983820227906108,
+     "Arched_Eyebrows": 0.07225348055362701,
+     "Attractive": 0.4093324840068817,
+     "Bags_Under_Eyes": 0.20412540435791016,
+     "Bald": 0.0009240240906365216,
+     "Bangs": 0.03644198551774025,
+     "Big_Lips": 0.08347845077514648,
+     "Big_Nose": 0.03365423530340195,
+     "Black_Hair": 0.0001581060205353424,
+     "Blond_Hair": 0.9642460346221924,
+     "Blurry": 0.13424116373062134,
+     "Brown_Hair": 0.001096387393772602,
+     "Bushy_Eyebrows": 0.0007593141053803265,
+     "Chubby": 0.0029945026617497206,
+     "Double_Chin": 0.0012282932875677943,
+     "Eyeglasses": 0.0006172847934067249,
+     "Goatee": 0.0003193207667209208,
+     "Gray_Hair": 0.028993958607316017,
+     "Heavy_Makeup": 0.001454444951377809,
+     "High_Cheekbones": 0.08608037978410721,
+     "Male": 0.011119401082396507,
+     "Mouth_Slightly_Open": 0.004134702496230602,
+     "Mustache": 0.0002087319880956784,
+     "Narrow_Eyes": 0.4295535087585449,
+     "No_Beard": 0.9971079230308533,
+     "Oval_Face": 0.038156479597091675,
+     "Pale_Skin": 0.5693073868751526,
+     "Pointy_Nose": 0.16895455121994019,
+     "Receding_Hairline": 0.0037215864285826683,
+     "Rosy_Cheeks": 8.058427192736417e-05,
+     "Sideburns": 0.0005234158597886562,
+     "Smiling": 0.5863895416259766,
+     "Straight_Hair": 0.3195202350616455,
+     "Wavy_Hair": 0.11777401715517044,
+     "Wearing_Earrings": 0.012549664825201035,
+     "Wearing_Hat": 0.0009960567113012075,
+     "Wearing_Lipstick": 0.017275815829634666,
+     "Wearing_Necklace": 0.09133877605199814,
+     "Wearing_Necktie": 0.001279497635550797,
+     "Young": 0.810032069683075
+    },
+    "age": 34,
+    "gender_scores": {
+     "Woman": 99.69979524612427,
+     "Man": 0.30020601116120815
+    },
+    "ethnicity_scores": {
+     "asian": 3.2169245183467865,
+     "indian": 11.428812891244888,
+     "black": 0.4077071789652109,
+     "white": 11.037465929985046,
+     "middle eastern": 64.69020247459412,
+     "latino hispanic": 9.218885004520416
+    },
+    "emotion_scores": {
+     "neutral": 1.4440140603255713e-06,
+     "happy": 0.9981459379196167,
+     "sad": 5.123486630509433e-07,
+     "surprise": 2.230933672390037e-14,
+     "fear": 6.965042691903234e-13,
+     "disgust": 0.000107773274066858,
+     "anger": 2.0882542628442025e-07,
+     "contempt": 0.0017440866213291883
+    },
+    "head_pose": {
+     "yaw": -13.65,
+     "pitch": -10.99,
+     "roll": 7.69
+    },
+    "gaze_direction": {
+     "eye_pos": {
+      "x1": 552,
+      "y1": 302,
+      "x2": 437,
+      "y2": 294
+     },
+     "yaw": 0.2,
+     "pitch": -0.03
+    }
+   }
+  },
+  {
+   "id": 7,
+   "type": "human face",
+   "position": {
+    "x0": 582,
+    "y0": 346,
+    "x1": 795,
+    "y1": 578
+   },
+   "depth": 229.59,
+   "attributes": {
+    "face_attributes_scores": {
+     "5_o_Clock_Shadow": 0.0034732958301901817,
+     "Arched_Eyebrows": 0.03322925046086311,
+     "Attractive": 0.14100877940654755,
+     "Bags_Under_Eyes": 0.1492307037115097,
+     "Bald": 0.001234945491887629,
+     "Bangs": 0.08673559129238129,
+     "Big_Lips": 0.07210559397935867,
+     "Big_Nose": 0.07232769578695297,
+     "Black_Hair": 0.0002383123355684802,
+     "Blond_Hair": 0.5865654349327087,
+     "Blurry": 0.20153939723968506,
+     "Brown_Hair": 0.017886845394968987,
+     "Bushy_Eyebrows": 0.00013874021533410996,
+     "Chubby": 0.015520615503191948,
+     "Double_Chin": 0.0032425434328615665,
+     "Eyeglasses": 0.0009481108281761408,
+     "Goatee": 0.00041388976387679577,
+     "Gray_Hair": 0.007976523600518703,
+     "Heavy_Makeup": 0.0004281461879145354,
+     "High_Cheekbones": 0.028919236734509468,
+     "Male": 0.05620582029223442,
+     "Mouth_Slightly_Open": 0.005471881944686174,
+     "Mustache": 0.0003898907161783427,
+     "Narrow_Eyes": 0.683286726474762,
+     "No_Beard": 0.9939124584197998,
+     "Oval_Face": 0.06398516148328781,
+     "Pale_Skin": 0.42878276109695435,
+     "Pointy_Nose": 0.0362250842154026,
+     "Receding_Hairline": 0.003340802388265729,
+     "Rosy_Cheeks": 9.000051068142056e-05,
+     "Sideburns": 0.0008408108842559159,
+     "Smiling": 0.34095484018325806,
+     "Straight_Hair": 0.10367058962583542,
+     "Wavy_Hair": 0.12706176936626434,
+     "Wearing_Earrings": 0.006277788896113634,
+     "Wearing_Hat": 0.0041347104124724865,
+     "Wearing_Lipstick": 0.006861360277980566,
+     "Wearing_Necklace": 0.08523733913898468,
+     "Wearing_Necktie": 0.001263467944227159,
+     "Young": 0.9014093279838562
+    },
+    "age": 29,
+    "gender_scores": {
+     "Woman": 98.51009249687195,
+     "Man": 1.4899126254022121
+    },
+    "ethnicity_scores": {
+     "asian": 31.858035922050476,
+     "indian": 4.854491725564003,
+     "black": 1.257258839905262,
+     "white": 25.297492742538452,
+     "middle eastern": 8.506456017494202,
+     "latino hispanic": 28.22626829147339
+    },
+    "emotion_scores": {
+     "neutral": 2.0761679479619488e-05,
+     "happy": 0.4609881043434143,
+     "sad": 0.00021895856480114162,
+     "surprise": 2.678538001208569e-13,
+     "fear": 1.299378826757902e-09,
+     "disgust": 0.5378416776657104,
+     "anger": 0.00010945735994027928,
+     "contempt": 0.0008210708037950099
+    },
+    "head_pose": {
+     "yaw": 3.76,
+     "pitch": -4.63,
+     "roll": -18.63
+    },
+    "gaze_direction": {
+     "eye_pos": {
+      "x1": 720,
+      "y1": 412,
+      "x2": 631,
+      "y2": 440
+     },
+     "yaw": -0.19,
+     "pitch": 0.07
+    }
+   }
+  }
+ ],
+ "relationships": [
+  {
+   "source": 0,
+   "target": 1,
+   "type": "in front of"
+  },
+  {
+   "source": 0,
+   "target": 2,
+   "type": "right"
+  },
+  {
+   "source": 0,
+   "target": 3,
+   "type": "below"
+  },
+  {
+   "source": 0,
+   "target": 4,
+   "type": "below-left"
+  },
+  {
+   "source": 0,
+   "target": 5,
+   "type": "below"
+  },
+  {
+   "source": 1,
+   "target": 2,
+   "type": "next to"
+  },
+  {
+   "source": 1,
+   "target": 3,
+   "type": "in front of"
+  },
+  {
+   "source": 1,
+   "target": 4,
+   "type": "in front of"
+  },
+  {
+   "source": 1,
+   "target": 5,
+   "type": "in front of"
+  },
+  {
+   "source": 2,
+   "target": 3,
+   "type": "in front of"
+  },
+  {
+   "source": 2,
+   "target": 4,
+   "type": "below-left"
+  },
+  {
+   "source": 2,
+   "target": 5,
+   "type": "below-left"
+  },
+  {
+   "source": 3,
+   "target": 4,
+   "type": "above-left"
+  },
+  {
+   "source": 3,
+   "target": 5,
+   "type": "in front of"
+  },
+  {
+   "source": 4,
+   "target": 5,
+   "type": "in front of"
+  },
+  {
+   "source": 6,
+   "target": 2,
+   "type": "is part of"
+  },
+  {
+   "source": 7,
+   "target": 1,
+   "type": "is part of"
+  }
+ ]
+}

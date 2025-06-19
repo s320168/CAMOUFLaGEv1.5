@@ -1,0 +1,288 @@
+{
+ "scene": {
+  "single_action_caption": "A woman wearing a headset in front of a blue screen with a bright light in the middle of it.",
+  "indoor-outdoor": "indoor",
+  "color_palette": [
+   [
+    [
+     26,
+     15,
+     143
+    ],
+    0.31170654296875
+   ],
+   [
+    [
+     36,
+     21,
+     9
+    ],
+    0.27286338806152344
+   ],
+   [
+    [
+     29,
+     20,
+     97
+    ],
+    0.15667279561360678
+   ],
+   [
+    [
+     143,
+     93,
+     65
+    ],
+    0.07868703206380208
+   ],
+   [
+    [
+     100,
+     105,
+     140
+    ],
+    0.0745073954264323
+   ],
+   [
+    [
+     33,
+     36,
+     186
+    ],
+    0.06041653951009115
+   ],
+   [
+    [
+     81,
+     135,
+     247
+    ],
+    0.041713714599609375
+   ],
+   [
+    [
+     238,
+     226,
+     224
+    ],
+    0.003432591756184896
+   ]
+  ],
+  "dimensions": {
+   "width": 1536,
+   "height": 1024
+  }
+ },
+ "objects": [
+  {
+   "id": 0,
+   "type": "person",
+   "position": {
+    "x0": 7,
+    "y0": 3,
+    "x1": 735,
+    "y1": 1017
+   },
+   "depth": 234.08
+  },
+  {
+   "id": 1,
+   "type": "microphone",
+   "position": {
+    "x0": 240,
+    "y0": 442,
+    "x1": 522,
+    "y1": 485
+   },
+   "depth": 246.3
+  },
+  {
+   "id": 2,
+   "type": "microphone",
+   "position": {
+    "x0": 201,
+    "y0": 387,
+    "x1": 521,
+    "y1": 488
+   },
+   "depth": 246.22
+  },
+  {
+   "id": 3,
+   "type": "human eye",
+   "position": {
+    "x0": 424,
+    "y0": 254,
+    "x1": 529,
+    "y1": 323
+   },
+   "depth": 253.99
+  },
+  {
+   "id": 4,
+   "type": "human nose",
+   "position": {
+    "x0": 532,
+    "y0": 292,
+    "x1": 633,
+    "y1": 415
+   },
+   "depth": 251.52
+  },
+  {
+   "id": 5,
+   "type": "human face",
+   "position": {
+    "x0": 302,
+    "y0": 78,
+    "x1": 650,
+    "y1": 628
+   },
+   "depth": 246.59,
+   "attributes": {
+    "face_attributes_scores": {
+     "5_o_Clock_Shadow": 0.006413871888071299,
+     "Arched_Eyebrows": 0.03277059644460678,
+     "Attractive": 0.016586456447839737,
+     "Bags_Under_Eyes": 0.1202726885676384,
+     "Bald": 0.0006351073971018195,
+     "Bangs": 0.004536241292953491,
+     "Big_Lips": 0.07448248565196991,
+     "Big_Nose": 0.03132314234972,
+     "Black_Hair": 0.003461092012003064,
+     "Blond_Hair": 0.00670628622174263,
+     "Blurry": 0.2334502786397934,
+     "Brown_Hair": 0.13301217555999756,
+     "Bushy_Eyebrows": 0.00031269542523659766,
+     "Chubby": 0.002960691461339593,
+     "Double_Chin": 0.002283028094097972,
+     "Eyeglasses": 0.0012213254813104868,
+     "Goatee": 0.0004293242818675935,
+     "Gray_Hair": 0.002726919250562787,
+     "Heavy_Makeup": 0.0004864153452217579,
+     "High_Cheekbones": 0.07161067426204681,
+     "Male": 0.15371960401535034,
+     "Mouth_Slightly_Open": 0.7773263454437256,
+     "Mustache": 0.0007282353471964598,
+     "Narrow_Eyes": 0.02170121856033802,
+     "No_Beard": 0.9875879883766174,
+     "Oval_Face": 0.011667023412883282,
+     "Pale_Skin": 0.009932667016983032,
+     "Pointy_Nose": 0.2910899817943573,
+     "Receding_Hairline": 0.014901448972523212,
+     "Rosy_Cheeks": 0.00011187049676664174,
+     "Sideburns": 0.0009211896103806794,
+     "Smiling": 0.059358566999435425,
+     "Straight_Hair": 0.1561889350414276,
+     "Wavy_Hair": 0.09919991344213486,
+     "Wearing_Earrings": 0.3921373188495636,
+     "Wearing_Hat": 0.011817535385489464,
+     "Wearing_Lipstick": 0.009028838016092777,
+     "Wearing_Necklace": 0.026622124016284943,
+     "Wearing_Necktie": 0.002750398823991418,
+     "Young": 0.1307595670223236
+    },
+    "age": 45,
+    "gender_scores": {
+     "Woman": 79.97120022773743,
+     "Man": 20.028793811798096
+    },
+    "ethnicity_scores": {
+     "asian": 0.0029286298667381624,
+     "indian": 0.00764335463910801,
+     "black": 0.0002408737061940876,
+     "white": 95.5444988932907,
+     "middle eastern": 2.4854426822330167,
+     "latino hispanic": 1.9592476313857812
+    },
+    "emotion_scores": {
+     "neutral": 1.808285238127233e-14,
+     "happy": 2.3161564333129547e-10,
+     "sad": 3.4778639282766475e-18,
+     "surprise": 0.9997920393943787,
+     "fear": 0.00020744242647197098,
+     "disgust": 1.4113246682434522e-10,
+     "anger": 5.77648165744904e-07,
+     "contempt": 1.5982113410473175e-08
+    },
+    "head_pose": {
+     "yaw": -38.34,
+     "pitch": 3.97,
+     "roll": -4.12
+    },
+    "gaze_direction": {
+     "eye_pos": {
+      "x1": 617,
+      "y1": 283,
+      "x2": 480,
+      "y2": 290
+     },
+     "yaw": -2.24,
+     "pitch": 20.31
+    }
+   }
+  }
+ ],
+ "relationships": [
+  {
+   "source": 0,
+   "target": 5,
+   "type": "has"
+  },
+  {
+   "source": 0,
+   "target": 1,
+   "type": "next to"
+  },
+  {
+   "source": 0,
+   "target": 2,
+   "type": "next to"
+  },
+  {
+   "source": 0,
+   "target": 3,
+   "type": "next to"
+  },
+  {
+   "source": 0,
+   "target": 4,
+   "type": "next to"
+  },
+  {
+   "source": 1,
+   "target": 2,
+   "type": "next to"
+  },
+  {
+   "source": 1,
+   "target": 3,
+   "type": "below-left"
+  },
+  {
+   "source": 1,
+   "target": 4,
+   "type": "below-left"
+  },
+  {
+   "source": 2,
+   "target": 3,
+   "type": "below-left"
+  },
+  {
+   "source": 2,
+   "target": 4,
+   "type": "below-left"
+  },
+  {
+   "source": 3,
+   "target": 4,
+   "type": "above-left"
+  },
+  {
+   "source": 5,
+   "target": 0,
+   "type": "is part of"
+  }
+ ]
+}

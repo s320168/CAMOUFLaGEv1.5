@@ -1,0 +1,329 @@
+{
+ "scene": {
+  "single_action_caption": "A young boy riding on the back of a brown and white horse next to a red fire hydrant.",
+  "indoor-outdoor": "outdoor",
+  "color_palette": [
+   [
+    [
+     179,
+     178,
+     168
+    ],
+    0.203798985866373
+   ],
+   [
+    [
+     154,
+     141,
+     115
+    ],
+    0.18340302633994127
+   ],
+   [
+    [
+     50,
+     35,
+     30
+    ],
+    0.1663397118208517
+   ],
+   [
+    [
+     210,
+     212,
+     204
+    ],
+    0.15631166253671072
+   ],
+   [
+    [
+     124,
+     92,
+     67
+    ],
+    0.13229625550660792
+   ],
+   [
+    [
+     200,
+     165,
+     121
+    ],
+    0.09236904598017621
+   ],
+   [
+    [
+     29,
+     108,
+     169
+    ],
+    0.036138548549926576
+   ],
+   [
+    [
+     170,
+     41,
+     36
+    ],
+    0.02934276339941263
+   ]
+  ],
+  "dimensions": {
+   "width": 681,
+   "height": 1024
+  }
+ },
+ "objects": [
+  {
+   "id": 0,
+   "type": "horse",
+   "position": {
+    "x0": 286,
+    "y0": 304,
+    "x1": 568,
+    "y1": 1012
+   },
+   "depth": 207.68
+  },
+  {
+   "id": 1,
+   "type": "horse",
+   "position": {
+    "x0": 0,
+    "y0": 408,
+    "x1": 224,
+    "y1": 1024
+   },
+   "depth": 232.05
+  },
+  {
+   "id": 2,
+   "type": "person",
+   "position": {
+    "x0": 258,
+    "y0": 48,
+    "x1": 632,
+    "y1": 537
+   },
+   "depth": 180.31
+  },
+  {
+   "id": 3,
+   "type": "footwear, sneakers",
+   "position": {
+    "x0": 584,
+    "y0": 476,
+    "x1": 630,
+    "y1": 534
+   },
+   "depth": 176.86
+  },
+  {
+   "id": 4,
+   "type": "person",
+   "position": {
+    "x0": 0,
+    "y0": 389,
+    "x1": 139,
+    "y1": 610
+   },
+   "depth": 243.63
+  },
+  {
+   "id": 5,
+   "type": "carriage",
+   "position": {
+    "x0": 265,
+    "y0": 224,
+    "x1": 665,
+    "y1": 1005
+   },
+   "depth": 62.14
+  },
+  {
+   "id": 6,
+   "type": "human face",
+   "position": {
+    "x0": 369,
+    "y0": 108,
+    "x1": 435,
+    "y1": 180
+   },
+   "depth": 167.81,
+   "attributes": {
+    "face_attributes_scores": {
+     "5_o_Clock_Shadow": 0.003212235402315855,
+     "Arched_Eyebrows": 0.003008622210472822,
+     "Attractive": 0.0912996456027031,
+     "Bags_Under_Eyes": 0.1569620966911316,
+     "Bald": 0.0012893283274024725,
+     "Bangs": 0.14371055364608765,
+     "Big_Lips": 0.030966829508543015,
+     "Big_Nose": 0.018564529716968536,
+     "Black_Hair": 0.0008059266256168485,
+     "Blond_Hair": 0.2804091274738312,
+     "Blurry": 0.16912513971328735,
+     "Brown_Hair": 0.018626438453793526,
+     "Bushy_Eyebrows": 0.00011697196896420792,
+     "Chubby": 0.004305233713239431,
+     "Double_Chin": 0.0009633922600187361,
+     "Eyeglasses": 0.0006023371824994683,
+     "Goatee": 0.0010077864862978458,
+     "Gray_Hair": 0.006955296732485294,
+     "Heavy_Makeup": 0.000459237809991464,
+     "High_Cheekbones": 0.019014524295926094,
+     "Male": 0.6939412951469421,
+     "Mouth_Slightly_Open": 0.0103900246322155,
+     "Mustache": 0.0008773215813562274,
+     "Narrow_Eyes": 0.19065725803375244,
+     "No_Beard": 0.9867076873779297,
+     "Oval_Face": 0.07347357273101807,
+     "Pale_Skin": 0.0822426825761795,
+     "Pointy_Nose": 0.03784928470849991,
+     "Receding_Hairline": 0.0026350917760282755,
+     "Rosy_Cheeks": 6.91562527208589e-05,
+     "Sideburns": 0.0007733786478638649,
+     "Smiling": 0.027575600892305374,
+     "Straight_Hair": 0.17236195504665375,
+     "Wavy_Hair": 0.018570123240351677,
+     "Wearing_Earrings": 0.008566560223698616,
+     "Wearing_Hat": 0.0012774664210155606,
+     "Wearing_Lipstick": 0.0011204540496692061,
+     "Wearing_Necklace": 0.009006287902593613,
+     "Wearing_Necktie": 0.0009450777433812618,
+     "Young": 0.9179559946060181
+    },
+    "age": 24,
+    "gender_scores": {
+     "Woman": 3.288862481713295,
+     "Man": 96.7111349105835
+    },
+    "ethnicity_scores": {
+     "asian": 34.45666432380676,
+     "indian": 1.7663540318608284,
+     "black": 0.6124539766460657,
+     "white": 46.602508425712585,
+     "middle eastern": 6.010083109140396,
+     "latino hispanic": 10.551941394805908
+    },
+    "emotion_scores": {
+     "neutral": 0.00033461395651102066,
+     "happy": 0.0025454717688262463,
+     "sad": 0.9965721368789673,
+     "surprise": 2.0027815480716527e-05,
+     "fear": 0.00013350622612051666,
+     "disgust": 0.00030975890695117414,
+     "anger": 8.460055687464774e-05,
+     "contempt": 3.491270605948671e-09
+    },
+    "head_pose": {
+     "yaw": 24.87,
+     "pitch": -30.73,
+     "roll": -23.52
+    },
+    "gaze_direction": {
+     "eye_pos": {
+      "x1": 401,
+      "y1": 139,
+      "x2": 379,
+      "y2": 142
+     },
+     "yaw": 13.78,
+     "pitch": -32.68
+    }
+   }
+  }
+ ],
+ "relationships": [
+  {
+   "source": 2,
+   "target": 0,
+   "type": "riding"
+  },
+  {
+   "source": 2,
+   "target": 0,
+   "type": "on"
+  },
+  {
+   "source": 0,
+   "target": 1,
+   "type": "right"
+  },
+  {
+   "source": 0,
+   "target": 2,
+   "type": "in front of"
+  },
+  {
+   "source": 0,
+   "target": 3,
+   "type": "below-left"
+  },
+  {
+   "source": 0,
+   "target": 4,
+   "type": "below-right"
+  },
+  {
+   "source": 0,
+   "target": 5,
+   "type": "in front of"
+  },
+  {
+   "source": 1,
+   "target": 2,
+   "type": "below-left"
+  },
+  {
+   "source": 1,
+   "target": 3,
+   "type": "below-left"
+  },
+  {
+   "source": 1,
+   "target": 4,
+   "type": "next to"
+  },
+  {
+   "source": 1,
+   "target": 5,
+   "type": "left"
+  },
+  {
+   "source": 2,
+   "target": 3,
+   "type": "next to"
+  },
+  {
+   "source": 2,
+   "target": 4,
+   "type": "above-right"
+  },
+  {
+   "source": 2,
+   "target": 5,
+   "type": "in front of"
+  },
+  {
+   "source": 3,
+   "target": 4,
+   "type": "right"
+  },
+  {
+   "source": 3,
+   "target": 5,
+   "type": "in front of"
+  },
+  {
+   "source": 4,
+   "target": 5,
+   "type": "left"
+  },
+  {
+   "source": 6,
+   "target": 2,
+   "type": "is part of"
+  }
+ ]
+}
