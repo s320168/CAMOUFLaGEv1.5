@@ -86,7 +86,7 @@ class MyDataset(Dataset):
             with torch.inference_mode():
                 shape = image.shape[-1]
                 latent_shape = shape // 8
-                res = get_datamaps(ext_sg, latent_shape, latent_shape)
+                res = get_datamaps(ext_sg, shape, shape, image_file)
 
         return {
             "image": image,

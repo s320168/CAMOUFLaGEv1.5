@@ -14,6 +14,8 @@ from transformers import CLIPVisionModelWithProjection, CLIPImageProcessor
 from ip_adapter import IPAdapterPlus, IPAdapterPlusXL
 from ip_adapter.utils import FacerAdapter
 
+import matplotlib.pyplot as plt
+
 
 class AttributeDict(dict):
     __getattr__ = dict.__getitem__
@@ -497,12 +499,30 @@ def get_gaze_dir_datamap(var: dict, orig_h: int, orig_w: int, h: int, w: int) ->
     res[y1, x1] = res[y2, x2] = yaw + 100000 * pitch
     return res
 
-def get_datamaps(extended_sg: dict, h: int, w: int):
-    h //= 8
-    w //= 8
+def get_palette_datamap(filename: str, h: int, w: int) -> torch.Tensor:
+    img = cv2.imread("data/input/images/" + filename)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cv2.resize(img, (w, h), interpolation=cv2.INTER_LINEAR)
+    Z = img.reshape((-1, 3))
+    Z = np.float32(Z)
+    # define criteria, number of clusters(K) and apply kmeans()
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    # number of colors in the palette
+    K = 8  
+    _, label, center = cv2.kmeans(Z, K, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+    label_flat = label.flatten()
+    palette_indices = np.uint8(center)
+    res = palette_indices[label_flat]
+    img_out = res.reshape(img.shape)
+    res = img_out[0::8, 0::8, :]
+    return torch.from_numpy(res).permute(2, 0, 1)
+
+def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Tensor:
+    ds_h = h // 8
+    ds_w = w // 8
     orig_h = extended_sg["scene"]["dimensions"]["height"]
     orig_w = extended_sg["scene"]["dimensions"]["width"]
-    features = torch.zeros((1, 59, h, w))
+    features = torch.zeros((1, 62, ds_h, ds_w))
     for o in extended_sg["objects"]:
         if o["type"] != "human face":
             continue
@@ -512,7 +532,8 @@ def get_datamaps(extended_sg: dict, h: int, w: int):
         obj = flatdict.FlatDict(o["attributes"])
         attr_keys = obj.keys()
         for i, k in enumerate(attr_keys):
-            features[0, i, int(pos["y0"]/orig_h*h):int(pos["y1"]/orig_h*h+1), int(pos["x0"]/orig_w*w):int(pos["x1"]/orig_w*w+1)] += obj[k]
-        features[0: -2] += get_head_pose_datamap(head, pos, orig_h, orig_w, h, w)
-        features[0, -1] += get_gaze_dir_datamap(gaze, orig_h, orig_w, h, w)
+            features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k]
+        features[0, 57] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
+        features[0, 58] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
+    features[0, 59:62] = get_palette_datamap(image_file, h, w)
     return features

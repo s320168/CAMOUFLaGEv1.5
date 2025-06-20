@@ -82,8 +82,7 @@
     "y0": 304,
     "x1": 568,
     "y1": 1012
-   },
-   "depth": 207.68
+   }
   },
   {
    "id": 1,
@@ -93,8 +92,7 @@
     "y0": 408,
     "x1": 224,
     "y1": 1024
-   },
-   "depth": 232.05
+   }
   },
   {
    "id": 2,
@@ -104,8 +102,7 @@
     "y0": 48,
     "x1": 632,
     "y1": 537
-   },
-   "depth": 180.31
+   }
   },
   {
    "id": 3,
@@ -115,8 +112,7 @@
     "y0": 476,
     "x1": 630,
     "y1": 534
-   },
-   "depth": 176.86
+   }
   },
   {
    "id": 4,
@@ -126,8 +122,7 @@
     "y0": 389,
     "x1": 139,
     "y1": 610
-   },
-   "depth": 243.63
+   }
   },
   {
    "id": 5,
@@ -137,8 +132,7 @@
     "y0": 224,
     "x1": 665,
     "y1": 1005
-   },
-   "depth": 62.14
+   }
   },
   {
    "id": 6,
@@ -149,7 +143,7 @@
     "x1": 435,
     "y1": 180
    },
-   "depth": 167.81,
+   "depth": 0.0,
    "attributes": {
     "face_attributes_scores": {
      "5_o_Clock_Shadow": 0.003212235402315855,
@@ -234,96 +228,5 @@
    }
   }
  ],
- "relationships": [
-  {
-   "source": 2,
-   "target": 0,
-   "type": "riding"
-  },
-  {
-   "source": 2,
-   "target": 0,
-   "type": "on"
-  },
-  {
-   "source": 0,
-   "target": 1,
-   "type": "right"
-  },
-  {
-   "source": 0,
-   "target": 2,
-   "type": "in front of"
-  },
-  {
-   "source": 0,
-   "target": 3,
-   "type": "below-left"
-  },
-  {
-   "source": 0,
-   "target": 4,
-   "type": "below-right"
-  },
-  {
-   "source": 0,
-   "target": 5,
-   "type": "in front of"
-  },
-  {
-   "source": 1,
-   "target": 2,
-   "type": "below-left"
-  },
-  {
-   "source": 1,
-   "target": 3,
-   "type": "below-left"
-  },
-  {
-   "source": 1,
-   "target": 4,
-   "type": "next to"
-  },
-  {
-   "source": 1,
-   "target": 5,
-   "type": "left"
-  },
-  {
-   "source": 2,
-   "target": 3,
-   "type": "next to"
-  },
-  {
-   "source": 2,
-   "target": 4,
-   "type": "above-right"
-  },
-  {
-   "source": 2,
-   "target": 5,
-   "type": "in front of"
-  },
-  {
-   "source": 3,
-   "target": 4,
-   "type": "right"
-  },
-  {
-   "source": 3,
-   "target": 5,
-   "type": "in front of"
-  },
-  {
-   "source": 4,
-   "target": 5,
-   "type": "left"
-  },
-  {
-   "source": 6,
-   "target": 2,
-   "type": "is part of"
-  }
- ]
+ "relationships": []
 }
