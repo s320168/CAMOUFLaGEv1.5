@@ -82,7 +82,8 @@
     "y0": 752,
     "x1": 936,
     "y1": 982
-   }
+   },
+   "depth": 244.82
   },
   {
    "id": 1,
@@ -92,7 +93,8 @@
     "y0": 235,
     "x1": 1020,
     "y1": 1031
-   }
+   },
+   "depth": 218.59
   },
   {
    "id": 2,
@@ -102,7 +104,8 @@
     "y0": 35,
     "x1": 675,
     "y1": 1033
-   }
+   },
+   "depth": 207.29
   },
   {
    "id": 3,
@@ -112,7 +115,8 @@
     "y0": 2,
     "x1": 834,
     "y1": 370
-   }
+   },
+   "depth": 65.38
   },
   {
    "id": 4,
@@ -122,7 +126,8 @@
     "y0": 420,
     "x1": 992,
     "y1": 460
-   }
+   },
+   "depth": 39.77
   },
   {
    "id": 5,
@@ -132,7 +137,8 @@
     "y0": 1,
     "x1": 1023,
     "y1": 465
-   }
+   },
+   "depth": 15.34
   },
   {
    "id": 6,
@@ -143,7 +149,7 @@
     "x1": 601,
     "y1": 505
    },
-   "depth": 0.0,
+   "depth": 235.16,
    "attributes": {
     "face_attributes_scores": {
      "5_o_Clock_Shadow": 0.001983820227906108,
@@ -236,7 +242,7 @@
     "x1": 795,
     "y1": 578
    },
-   "depth": 0.0,
+   "depth": 229.59,
    "attributes": {
     "face_attributes_scores": {
      "5_o_Clock_Shadow": 0.0034732958301901817,
@@ -321,5 +327,96 @@
    }
   }
  ],
- "relationships": []
+ "relationships": [
+  {
+   "source": 2,
+   "target": 1,
+   "type": "holding"
+  },
+  {
+   "source": 0,
+   "target": 1,
+   "type": "in front of"
+  },
+  {
+   "source": 0,
+   "target": 2,
+   "type": "right"
+  },
+  {
+   "source": 0,
+   "target": 3,
+   "type": "below"
+  },
+  {
+   "source": 0,
+   "target": 4,
+   "type": "below-left"
+  },
+  {
+   "source": 0,
+   "target": 5,
+   "type": "below"
+  },
+  {
+   "source": 1,
+   "target": 2,
+   "type": "next to"
+  },
+  {
+   "source": 1,
+   "target": 3,
+   "type": "in front of"
+  },
+  {
+   "source": 1,
+   "target": 4,
+   "type": "in front of"
+  },
+  {
+   "source": 1,
+   "target": 5,
+   "type": "in front of"
+  },
+  {
+   "source": 2,
+   "target": 3,
+   "type": "in front of"
+  },
+  {
+   "source": 2,
+   "target": 4,
+   "type": "below-left"
+  },
+  {
+   "source": 2,
+   "target": 5,
+   "type": "below-left"
+  },
+  {
+   "source": 3,
+   "target": 4,
+   "type": "above-left"
+  },
+  {
+   "source": 3,
+   "target": 5,
+   "type": "in front of"
+  },
+  {
+   "source": 4,
+   "target": 5,
+   "type": "in front of"
+  },
+  {
+   "source": 6,
+   "target": 2,
+   "type": "is part of"
+  },
+  {
+   "source": 7,
+   "target": 1,
+   "type": "is part of"
+  }
+ ]
 }

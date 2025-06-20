@@ -84,7 +84,7 @@ class IPAdapterTrainer(torch.nn.Module):
 class FacerAdapter(nn.Module):
     def __init__(
             self,
-            in_channels: int = 59,
+            in_channels: int = 63,
             channels=None,
             num_res_blocks: int = 2,
             downscale_factor: int = 1,

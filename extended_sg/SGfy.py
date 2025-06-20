@@ -25,7 +25,7 @@ def list_objects(input_data: dict, output_data: dict, input_filename: str, confi
     add_objects(input_data, output_data)
     
     # adds depth attribute to the objects previously identified
-    #add_objects_depth(input_data, output_data, input_filename, config)
+    add_objects_depth(input_data, output_data, input_filename, config)
     
     # adds gender, age and ethnicity to "human face" objects
     add_persons_characteristics(input_data, output_data, config)
@@ -46,13 +46,13 @@ def list_relations(output_data: dict, input_filename: str, config: dict) -> None
     output_data["relationships"] = []
 
     # add relations found by an ad hoc model (RelTR)
-    #merge_scene_graph(output_data, input_filename, config)
+    merge_scene_graph(output_data, input_filename, config)
 
     # computes positional relations like being in front of, behind, to the left, to the right, above, below, ...
-    #add_positional_relations(output_data, config)
+    add_positional_relations(output_data, config)
 
     # computes to which "person" a "human face" object belongs
-    #add_face_person_relations(output_data, input_filename, config)
+    add_face_person_relations(output_data, input_filename, config)
     
 
 if __name__ == "__main__":

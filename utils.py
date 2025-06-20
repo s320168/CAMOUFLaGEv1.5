@@ -522,18 +522,23 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Te
     ds_w = w // 8
     orig_h = extended_sg["scene"]["dimensions"]["height"]
     orig_w = extended_sg["scene"]["dimensions"]["width"]
-    features = torch.zeros((1, 62, ds_h, ds_w))
+    features = torch.zeros((1, 63, ds_h, ds_w))
     for o in extended_sg["objects"]:
-        if o["type"] != "human face":
-            continue
         pos = o["position"]
+        if o["type"] != "human face":
+            features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"]
+            continue
         head = o["attributes"].pop("head_pose")
         gaze = o["attributes"].pop("gaze_direction")
         obj = flatdict.FlatDict(o["attributes"])
         attr_keys = obj.keys()
         for i, k in enumerate(attr_keys):
             features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k]
-        features[0, 57] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
-        features[0, 58] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
-    features[0, 59:62] = get_palette_datamap(image_file, h, w)
+        features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"]
+        features[0, 58] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
+        features[0, 59] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
+    features[0, 60:63] = get_palette_datamap(image_file, h, w)
+    img = Image.fromarray(features[0, 42].numpy())
+    imgplot = plt.imshow(img)
+    plt.show()
     return features
