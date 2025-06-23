@@ -477,68 +477,87 @@ class catchtime(object):
         print(self.t)
 
 def get_head_pose_datamap(var: dict, pos: dict, orig_w: int, orig_h: int, w: int, h: int) -> torch.Tensor:
-    res = torch.zeros((w, h))
+    # initialize output matrix
+    res = torch.zeros((h, w))
+    # corner points of the head bounding box, adjusted to the new image size
     x0 = int(pos["x0"]/orig_w*w)
     y0 = int(pos["y0"]/orig_h*h)
     x1 = int(pos["x1"]/orig_w*w)
     y1 = int(pos["y1"]/orig_h*h)
+    # bring data from (-180, +180) to (0, +360) domain and discard their decimal part
     yaw = int(var["yaw"] + 180)
     pitch = int(var["pitch"] + 180)
     roll = int(var["roll"] + 180)
+    # pack yaw, pitch and roll data into a single value where in the fomat rrrpppyyy
     res[y0:y1+1, x0:x1+1] = yaw + 1000 * pitch + 1000000 * roll
     return res
 
 def get_gaze_dir_datamap(var: dict, orig_h: int, orig_w: int, h: int, w: int) -> torch.Tensor:
+    # initialize output matrix
     res = torch.zeros((h, w))
+    # corner points of the head bounding box, adjusted to the new image size
     x1 = int(var["eye_pos"]["x1"]/orig_w*w)
     y1 = int(var["eye_pos"]["y1"]/orig_h*h)
     x2 = int(var["eye_pos"]["x2"]/orig_w*w)
     y2 = int(var["eye_pos"]["y2"]/orig_h*h)
+    # bring data from (-180, +180) to (0, +360) domain and multiply it to make it an integer number
     yaw = (var["yaw"] + 180) * 100
     pitch = (var["pitch"] + 180) * 100
+    # pack yaw and pitch data into a single value where in the fomat pppppyyyyy
     res[y1, x1] = res[y2, x2] = yaw + 100000 * pitch
     return res
 
 def get_palette_datamap(filename: str, h: int, w: int) -> torch.Tensor:
+    # read original image, convert it into RGB format and resize it into the needed shape
     img = cv2.imread("data/input/images/" + filename)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img = cv2.resize(img, (w, h), interpolation=cv2.INTER_LINEAR)
     Z = img.reshape((-1, 3))
     Z = np.float32(Z)
-    # define criteria, number of clusters(K) and apply kmeans()
+    # define criteria
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
     # number of colors in the palette
-    K = 8  
+    K = 8
+    # apply kmeans
     _, label, center = cv2.kmeans(Z, K, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
     label_flat = label.flatten()
-    palette_indices = np.uint8(center)
-    res = palette_indices[label_flat]
-    img_out = res.reshape(img.shape)
-    res = img_out[0::8, 0::8, :]
+    # compose final output using color palette stored in center at the indexes stored in label_flat
+    res = center[label_flat]
+    # rehape to the resized image dimensions
+    res = res.reshape(img.shape)
     return torch.from_numpy(res).permute(2, 0, 1)
 
 def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Tensor:
+    # compute the data maps shape as 1/8 of the cropped image
     ds_h = h // 8
     ds_w = w // 8
+    # keep track of the original dimensions of the image so to rescale positional data later
     orig_h = extended_sg["scene"]["dimensions"]["height"]
     orig_w = extended_sg["scene"]["dimensions"]["width"]
+    # initialize the output
     features = torch.zeros((1, 63, ds_h, ds_w))
+    # cycle through every object
     for o in extended_sg["objects"]:
+        # keep the object's bounding box
         pos = o["position"]
+        # if the object isn't a "human face" note only its depth data
         if o["type"] != "human face":
             features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"]
             continue
+        # for "human face" objects keep separately head pose and gaze direction data
         head = o["attributes"].pop("head_pose")
         gaze = o["attributes"].pop("gaze_direction")
+        # flatten the other attributes into a single layer dictionary
         obj = flatdict.FlatDict(o["attributes"])
         attr_keys = obj.keys()
+        # cycle through every attribute to insert it in the corresponding data map area delimited by the face's bounding box
         for i, k in enumerate(attr_keys):
             features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k]
+        # add depth data to its map highlighted by the face's bounding box
         features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"]
+        # add head pose and gaze direction data to the corresponding data map areas
         features[0, 58] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
         features[0, 59] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
-    features[0, 60:63] = get_palette_datamap(image_file, h, w)
-    img = Image.fromarray(features[0, 42].numpy())
-    imgplot = plt.imshow(img)
-    plt.show()
+    # add color palette datamap
+    features[0, 60:63] = get_palette_datamap(image_file, ds_h, ds_w)
     return features
