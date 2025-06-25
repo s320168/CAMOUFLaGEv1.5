@@ -15,6 +15,8 @@ from ip_adapter import IPAdapterPlus, IPAdapterPlusXL
 from ip_adapter.utils import FacerAdapter
 
 import matplotlib.pyplot as plt
+import math
+from controlnet_aux import OpenposeDetector
 
 
 class AttributeDict(dict):
@@ -476,7 +478,7 @@ class catchtime(object):
         self.t = time.time() - self.t
         print(self.t)
 
-def get_head_pose_datamap(var: dict, pos: dict, orig_w: int, orig_h: int, w: int, h: int) -> torch.Tensor:
+def get_head_pose_datamap(var: dict, pos: dict, orig_h: int, orig_w: int, h: int, w: int) -> torch.Tensor:
     # initialize output matrix
     res = torch.zeros((h, w))
     # corner points of the head bounding box, adjusted to the new image size
@@ -507,11 +509,9 @@ def get_gaze_dir_datamap(var: dict, orig_h: int, orig_w: int, h: int, w: int) ->
     res[y1, x1] = res[y2, x2] = yaw + 100000 * pitch
     return res
 
-def get_palette_datamap(filename: str, h: int, w: int) -> torch.Tensor:
-    # read original image, convert it into RGB format and resize it into the needed shape
-    img = cv2.imread("data/input/images/" + filename)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    img = cv2.resize(img, (w, h), interpolation=cv2.INTER_LINEAR)
+def get_palette_datamap(img: np.array, h: int, w: int) -> torch.Tensor:
+    # resize image to get a 1/8 downsample
+    img = cv2.resize(img, (h, w), interpolation=cv2.INTER_LINEAR)
     Z = img.reshape((-1, 3))
     Z = np.float32(Z)
     # define criteria
@@ -527,15 +527,32 @@ def get_palette_datamap(filename: str, h: int, w: int) -> torch.Tensor:
     res = res.reshape(img.shape)
     return torch.from_numpy(res).permute(2, 0, 1)
 
-def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Tensor:
-    # compute the data maps shape as 1/8 of the cropped image
+def get_body_datamap(img: np.array, h: int, w: int, processor: OpenposeDetector) -> torch.Tensor:
+    # img.size equals to c * h * w, so h and w are equal to the squared root of img.size / 3
+    img_size = math.sqrt(img.size / 3)
+    # get the pose estimation map from Openpose and convert it to numpy array
+    openpose_image = processor(img, detect_resolution=img_size, image_resolution=img_size)
+    open_cv_image = np.array(openpose_image)
+    # convert RGB to BGR
+    open_cv_image = open_cv_image[:, :, ::-1].copy()
+    # resize image to the downsampled shape
+    img = cv2.resize(open_cv_image, (h, w), interpolation=cv2.INTER_LINEAR)
+    # get the greyscale version of the image
+    grayImage = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # turn the greyscale image into a black and white one
+    _, blackAndWhiteImage = cv2.threshold(grayImage, 1, 255, cv2.THRESH_BINARY)
+    return torch.from_numpy(blackAndWhiteImage)
+
+
+def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str, processor: OpenposeDetector) -> torch.Tensor:
+    # compute the data maps shape as a 1/8 downsample of the cropped image
     ds_h = h // 8
     ds_w = w // 8
     # keep track of the original dimensions of the image so to rescale positional data later
     orig_h = extended_sg["scene"]["dimensions"]["height"]
     orig_w = extended_sg["scene"]["dimensions"]["width"]
     # initialize the output
-    features = torch.zeros((1, 63, ds_h, ds_w))
+    features = torch.zeros((1, 64, ds_h, ds_w))
     # cycle through every object
     for o in extended_sg["objects"]:
         # keep the object's bounding box
@@ -552,12 +569,18 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Te
         attr_keys = obj.keys()
         # cycle through every attribute to insert it in the corresponding data map area delimited by the face's bounding box
         for i, k in enumerate(attr_keys):
-            features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k]
+            features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k] * 255
         # add depth data to its map highlighted by the face's bounding box
         features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"]
         # add head pose and gaze direction data to the corresponding data map areas
         features[0, 58] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
         features[0, 59] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
+    # read original image, convert it into RGB format and resize it into the needed shape
+    img = cv2.imread("data/input/images/" + image_file)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cv2.resize(img, (h, w), interpolation=cv2.INTER_LINEAR)
     # add color palette datamap
-    features[0, 60:63] = get_palette_datamap(image_file, ds_h, ds_w)
+    features[0, 60:63] = get_palette_datamap(img, ds_h, ds_w)
+    # add body pose datamap
+    features[0, 63] = get_body_datamap(img, ds_h, ds_w, processor)
     return features

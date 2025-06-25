@@ -9,6 +9,7 @@ from transformers import CLIPImageProcessor
 from torch.utils.data import Dataset
 from utils import get_datamaps
 import json
+from controlnet_aux import OpenposeDetector
 
 
 class MyDataset(Dataset):
@@ -37,12 +38,13 @@ class MyDataset(Dataset):
             controller_tfms = CLIPImageProcessor()
         self.controller_transforms = controller_tfms
         self.use_t2i = use_t2i
+        self.pose_processor = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
 
     def __getitem__(self, idx):
         item = self.data.iloc[idx]
         # these entries would change based on the dataset passed through FRESCO and the chosen SGG model: for example the caption would be taken from
         # the extended scene graph obtained by processing FRESCO's identikit
-        image_file = item[0]
+        image_file = item["file_name"]
 
         # TODO
         # here the image should be passed to FRESCO to generate the corresponding identikit;
@@ -85,8 +87,7 @@ class MyDataset(Dataset):
             raw_image = ((image / 2 + 0.5) * 255).unsqueeze(0)
             with torch.inference_mode():
                 shape = image.shape[-1]
-                latent_shape = shape // 8
-                res = get_datamaps(ext_sg, shape, shape, image_file)
+                res = get_datamaps(ext_sg, shape, shape, image_file, self.pose_processor)
 
         return {
             "image": image,
