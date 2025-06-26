@@ -29,6 +29,10 @@ else:
 if is_wandb_available():
     import wandb
 
+with open("data/wandb.txt", "r") as f:
+    k = f.read()
+wandb.login(key=k.strip())
+
 logger = get_logger(__name__)
 
 
