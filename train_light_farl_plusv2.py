@@ -32,6 +32,7 @@ if is_wandb_available():
 with open("data/wandb.txt", "r") as f:
     k = f.read()
 wandb.login(key=k.strip())
+os.environ['HF_HOME'] = '../weights/'
 
 logger = get_logger(__name__)
 
