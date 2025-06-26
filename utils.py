@@ -486,12 +486,15 @@ def get_head_pose_datamap(var: dict, pos: dict, orig_h: int, orig_w: int, h: int
     y0 = int(pos["y0"]/orig_h*h)
     x1 = int(pos["x1"]/orig_w*w)
     y1 = int(pos["y1"]/orig_h*h)
+    # compute the center of the bounding box
+    center_y = (y1 + y0) // 2
+    center_x = (x1 + x0) // 2
     # bring data from (-180, +180) to (0, +360) domain and discard their decimal part
     yaw = int(var["yaw"] + 180)
     pitch = int(var["pitch"] + 180)
     roll = int(var["roll"] + 180)
-    # pack yaw, pitch and roll data into a single value where in the fomat rrrpppyyy
-    res[y0:y1+1, x0:x1+1] = yaw + 1000 * pitch + 1000000 * roll
+    # pack yaw, pitch and roll data into a single value where in the fomat rrrpppyyy in the center of the face's bounding box
+    res[center_y, center_x] = yaw + 1000 * pitch + 1000000 * roll
     return res
 
 def get_gaze_dir_datamap(var: dict, orig_h: int, orig_w: int, h: int, w: int) -> torch.Tensor:
@@ -583,4 +586,7 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str, processor: 
     features[0, 60:63] = get_palette_datamap(img, ds_h, ds_w)
     # add body pose datamap
     features[0, 63] = get_body_datamap(img, ds_h, ds_w, processor)
+    img = Image.fromarray(features[0, 58].numpy())
+    plt.imshow(img)
+    plt.show()
     return features
