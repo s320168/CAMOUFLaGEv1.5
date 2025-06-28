@@ -9,12 +9,11 @@ from transformers import CLIPImageProcessor
 from torch.utils.data import Dataset
 from utils import get_datamaps
 import json
-from controlnet_aux import OpenposeDetector
 
 
 class MyDataset(Dataset):
     def __init__(self, json_file, tokenizer, size=512, t_drop_rate=0.05, i_drop_rate=0.05, ti_drop_rate=0.05, tfms=None,
-                 controller_tfms=None, use_t2i=False):
+                 controller_tfms=None, use_t2i=False, pose_processor=None):
         super().__init__()
 
         self.tokenizer = tokenizer
@@ -38,7 +37,8 @@ class MyDataset(Dataset):
             controller_tfms = CLIPImageProcessor()
         self.controller_transforms = controller_tfms
         self.use_t2i = use_t2i
-        self.pose_processor = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
+        if self.use_t2i and pose_processor is not None:
+            self.pose_processor = pose_processor
 
     def __getitem__(self, idx):
         item = self.data.iloc[idx]

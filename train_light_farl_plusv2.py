@@ -20,6 +20,7 @@ from diffusers.utils import is_wandb_available
 from ip_adapter.utils import is_torch2_available, init_ip_adapter, FacerAdapter
 from pipelines import StableDiffusionImg2ImgPipelineRes
 from utils import parse_args, set_requires_grad, set_device_dtype, IPAdapterPlusFT, get_datamaps
+from controlnet_aux import OpenposeDetector
 
 if is_torch2_available():
     from diffusers.models.attention_processor import AttnProcessor2_0 as AttnProcessor
@@ -79,6 +80,8 @@ def main():
     # ip-adapter-plus
     ip_adapter = init_ip_adapter(num_tokens=16, unet=unet, image_encoder=image_encoder, usev2=args.usev2,
                                  t2i_adapter=FacerAdapter() if args.use_t2i else None)
+    
+    openpose_processor = OpenposeDetector.from_trained('lllyasviel/Annotators', cache_dir='../weights/')
 
     if args.load_adapter_path is not None:
         ip_adapter.load_state_dict(torch.load(args.load_adapter_path), strict=False)
@@ -102,7 +105,7 @@ def main():
 
     # dataloader
     dataset = MyDataset(args.data_file, tokenizer=tokenizer, size=args.resolution, use_t2i=args.use_t2i,
-                        controller_tfms=CLIPImageProcessor(args.image_encoder_path))
+                        controller_tfms=CLIPImageProcessor(args.image_encoder_path), pose_processor=openpose_processor)
 
     tfms, controller_transforms = dataset.transform, dataset.controller_transforms
     train_dataloader = DataLoader(
@@ -227,6 +230,7 @@ def main():
                                 accelerator,
                                 accelerator.mixed_precision,
                                 global_step,
+                                openpose_processor
                             )
 
                 logs = {"loss": loss.detach().item()}  # , "lr": lr_scheduler.get_last_lr()[0]}
@@ -237,7 +241,7 @@ def main():
 
 
 def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transforms, image_encoder, ipAdapterTrainer,
-                   args, accelerator, weight_dtype, step):
+                   args, accelerator, weight_dtype, step, pose_processor):
     logger.info("Running validation... ")
 
     # controlnet = accelerator.unwrap_model(cunet)
@@ -285,7 +289,7 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
 
     for validation_prompt, validation_image in zip(validation_prompts, validation_images):
         image_file = validation_image
-        validation_image = Image.open(validation_image).convert("RGB")
+        validation_image = Image.open("data/input/images/" + validation_image).convert("RGB")
 
         images = []
 
@@ -302,7 +306,7 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
                     # load the extended scene graph file in a dictionary
                     with open("data/input/extended_sg/extended_sg_" + image_file.split(".")[0] + ".json") as f:
                         ext_sg = json.load(f)
-                    res = get_datamaps(ext_sg, latent_shape, latent_shape)
+                    res = get_datamaps(ext_sg, shape, shape, image_file, pose_processor)
                     
             tmp = ip_model.generate(pil_image=validation_image, num_samples=args.num_validation_images,
                                     num_inference_steps=30, prompt=validation_prompt, seed=args.seed,
