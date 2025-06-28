@@ -81,7 +81,7 @@ def main():
     ip_adapter = init_ip_adapter(num_tokens=16, unet=unet, image_encoder=image_encoder, usev2=args.usev2,
                                  t2i_adapter=FacerAdapter() if args.use_t2i else None)
     
-    openpose_processor = OpenposeDetector.from_trained('lllyasviel/Annotators', cache_dir='../weights/')
+    openpose_processor = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
 
     if args.load_adapter_path is not None:
         ip_adapter.load_state_dict(torch.load(args.load_adapter_path), strict=False)
@@ -304,7 +304,7 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
                     # TODO: pass image to FRESCO and to the SGG model
 
                     # load the extended scene graph file in a dictionary
-                    with open("data/input/extended_sg/extended_sg_" + image_file.split("/")[-1].image_file.split(".")[0] + ".json") as f:
+                    with open("data/input/extended_sg/extended_sg_" + image_file.split(".")[0] + ".json") as f:
                         ext_sg = json.load(f)
                     res = get_datamaps(ext_sg, shape, shape, image_file, pose_processor)
                     
