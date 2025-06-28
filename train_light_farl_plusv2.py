@@ -81,7 +81,8 @@ def main():
     ip_adapter = init_ip_adapter(num_tokens=16, unet=unet, image_encoder=image_encoder, usev2=args.usev2,
                                  t2i_adapter=FacerAdapter() if args.use_t2i else None)
     
-    openpose_processor = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
+    if args.use_t2i is not None:
+        openpose_processor = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
 
     if args.load_adapter_path is not None:
         ip_adapter.load_state_dict(torch.load(args.load_adapter_path), strict=False)
@@ -105,7 +106,8 @@ def main():
 
     # dataloader
     dataset = MyDataset(args.data_file, tokenizer=tokenizer, size=args.resolution, use_t2i=args.use_t2i,
-                        controller_tfms=CLIPImageProcessor(args.image_encoder_path), pose_processor=openpose_processor)
+                        controller_tfms=CLIPImageProcessor(args.image_encoder_path), 
+                        pose_processor=openpose_processor if args.use_t2i is not None else None)
 
     tfms, controller_transforms = dataset.transform, dataset.controller_transforms
     train_dataloader = DataLoader(

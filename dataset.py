@@ -37,7 +37,7 @@ class MyDataset(Dataset):
             controller_tfms = CLIPImageProcessor()
         self.controller_transforms = controller_tfms
         self.use_t2i = use_t2i
-        if self.use_t2i and pose_processor is not None:
+        if self.use_t2i is not None and pose_processor is not None:
             self.pose_processor = pose_processor
 
     def __getitem__(self, idx):

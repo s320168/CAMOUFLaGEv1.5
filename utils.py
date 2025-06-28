@@ -14,8 +14,6 @@ from transformers import CLIPVisionModelWithProjection, CLIPImageProcessor
 from ip_adapter import IPAdapterPlus, IPAdapterPlusXL
 from ip_adapter.utils import FacerAdapter
 
-import matplotlib.pyplot as plt
-import math
 from controlnet_aux import OpenposeDetector
 
 
@@ -531,10 +529,8 @@ def get_palette_datamap(img: np.array, h: int, w: int) -> torch.Tensor:
     return torch.from_numpy(res).permute(2, 0, 1)
 
 def get_body_datamap(img: np.array, h: int, w: int, processor: OpenposeDetector) -> torch.Tensor:
-    # img.size equals to c * h * w, so h and w are equal to the squared root of img.size / 3
-    img_size = math.sqrt(img.size / 3)
     # get the pose estimation map from Openpose and convert it to numpy array
-    openpose_image = processor(img, detect_resolution=img_size, image_resolution=img_size)
+    openpose_image = processor(img, detect_resolution=img.shape[0], image_resolution=img.shape[0])
     open_cv_image = np.array(openpose_image)
     # convert RGB to BGR
     open_cv_image = open_cv_image[:, :, ::-1].copy()
