@@ -304,7 +304,7 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
                     # TODO: pass image to FRESCO and to the SGG model
 
                     # load the extended scene graph file in a dictionary
-                    with open("data/input/extended_sg/extended_sg_" + image_file.split(".")[0] + ".json") as f:
+                    with open("data/input/extended_sg/extended_sg_" + image_file.split("/")[-1].image_file.split(".")[0] + ".json") as f:
                         ext_sg = json.load(f)
                     res = get_datamaps(ext_sg, shape, shape, image_file, pose_processor)
                     
