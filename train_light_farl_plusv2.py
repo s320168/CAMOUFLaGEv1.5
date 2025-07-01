@@ -308,21 +308,21 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
                     ext_sg = json.load(f)
                 res = get_datamaps(ext_sg, shape, shape, image_file, pose_processor)
 
-        with torch.autocast("cuda"), torch.no_grad():
-                    
-            tmp = ip_model.generate(pil_image=validation_image, num_samples=args.num_validation_images,
+        with torch.no_grad(): # torch.autocast("cuda"), torch.no_grad() -> torch.no_grad(): by removing this I stop getting black images 
+            # this resize makes dimensionality related errors disappear (there could be a better way to do this)
+            crop_image = validation_image.resize((512, 512), Image.Resampling.BILINEAR)
+            # using crop_image instead of validation_image in the arguments for the reason above
+            tmp = ip_model.generate(pil_image=crop_image, num_samples=args.num_validation_images,
                                     num_inference_steps=30, prompt=validation_prompt, seed=args.seed,
-                                    negative_prompt=token, image=validation_image, strength=0.9,
+                                    negative_prompt=token, image=crop_image, strength=0.9,
                                     scale=0.8 if len(validation_prompt) > 1 else 1.0,
                                     down_block_additional_residuals=None if res is None else ipAdapterTrainer.t2i_adapter(
                                         res.to(accelerator.device)))
-            print(type(tmp))
-            print(tmp)
 
         images.extend(tmp)
 
         image_logs.append(
-            {"validation_image": validation_image, "images": images, "validation_prompt": validation_prompt}
+            {"validation_image": crop_image, "images": images, "validation_prompt": validation_prompt}
         )
     for tracker in accelerator.trackers:
         if tracker.name == "tensorboard":
