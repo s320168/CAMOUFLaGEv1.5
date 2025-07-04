@@ -294,21 +294,21 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
         validation_image = Image.open("data/input/images/" + validation_image).convert("RGB")
 
         images = []
-        with torch.inference_mode(), torch.no_grad():
-            if ipAdapterTrainer.t2i_adapter is None:
-                res = None
-            else:
-                raw_image = ((tfms(validation_image) / 2 + 0.5) * 255).unsqueeze(0).to(accelerator.device)
-                shape = raw_image.shape[-1]
-                latent_shape = shape // 8
-                # TODO: pass image to FRESCO and to the SGG model
+        with torch.autocast("cuda"), torch.no_grad():
+            with torch.inference_mode():
+                if ipAdapterTrainer.t2i_adapter is None:
+                    res = None
+                else:
+                    raw_image = ((tfms(validation_image) / 2 + 0.5) * 255).unsqueeze(0).to(accelerator.device)
+                    shape = raw_image.shape[-1]
+                    latent_shape = shape // 8
+                    # TODO: pass image to FRESCO and to the SGG model
 
-                # load the extended scene graph file in a dictionary
-                with open("data/input/extended_sg/extended_sg_" + image_file.split(".")[0] + ".json") as f:
-                    ext_sg = json.load(f)
-                res = get_datamaps(ext_sg, shape, shape, image_file, pose_processor)
+                    # load the extended scene graph file in a dictionary
+                    with open("data/input/extended_sg/extended_sg_" + image_file.split(".")[0] + ".json") as f:
+                        ext_sg = json.load(f)
+                    res = get_datamaps(ext_sg, shape, shape, image_file, pose_processor)
 
-        with torch.no_grad(): # torch.autocast("cuda"), torch.no_grad() -> torch.no_grad(): by removing this I stop getting black images 
             # this resize makes dimensionality related errors disappear (there could be a better way to do this)
             crop_image = validation_image.resize((512, 512), Image.Resampling.BILINEAR)
             # using crop_image instead of validation_image in the arguments for the reason above
