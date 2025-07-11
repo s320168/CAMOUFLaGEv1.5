@@ -552,32 +552,34 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str, processor: 
     orig_w = extended_sg["scene"]["dimensions"]["width"]
     # initialize the output
     #features = torch.zeros((1, 64, ds_h, ds_w))
-    features = torch.zeros((1, 42, ds_h, ds_w))
+    features = torch.zeros((1, 60, ds_h, ds_w))
     # cycle through every object
     for o in extended_sg["objects"]:
         # keep the object's bounding box
         pos = o["position"]
-        # if the object isn't a "human face" note only its depth data
+        # if the object isn't a "human face" note only its depth data brought in [0, 1) range
         if o["type"] != "human face":
-            #features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"]
+            features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"] / 255
             continue
         # for "human face" objects keep separately head pose and gaze direction data
         head = o["attributes"].pop("head_pose")
         gaze = o["attributes"].pop("gaze_direction")
         # flatten the other attributes into a single layer dictionary
-        #obj = flatdict.FlatDict(o["attributes"])
-        obj = o["attributes"]["face_attributes_scores"]
+        obj = flatdict.FlatDict(o["attributes"])
         attr_keys = obj.keys()
         # cycle through every attribute to insert it in the corresponding data map area delimited by the face's bounding box
         for i, k in enumerate(attr_keys):
-            features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k]
-        # add depth data to its map highlighted by the face's bounding box
-    #     features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"]
-    #     # add head pose and gaze direction data to the corresponding data map areas
-    #     features[0, 58] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
-    #     features[0, 59] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
-        features[0, 40] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
-        features[0, 41] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
+            # face_attributes_scores and emotion_scores are already in [0, 1) range
+            if "face_attributes_scores." in k or "emotion_scores." in k:
+                features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k]
+            # every other remaining attribute needs to be brought in [0, 1) range
+            else:
+                features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k] / 100
+        # add depth data (brought ini [0, 1) range) to its map highlighted by the face's bounding box
+        features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"] / 255
+        # add head pose and gaze direction data to the corresponding data map areas
+        features[0, 58] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
+        features[0, 59] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
     # # read original image, convert it into RGB format and resize it into the needed shape
     # img = cv2.imread("data/input/images/" + image_file)
     # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
