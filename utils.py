@@ -491,8 +491,8 @@ def get_head_pose_datamap(var: dict, pos: dict, orig_h: int, orig_w: int, h: int
     yaw = int(var["yaw"] + 180)
     pitch = int(var["pitch"] + 180)
     roll = int(var["roll"] + 180)
-    # pack yaw, pitch and roll data into a single value where in the fomat rrrpppyyy in the center of the face's bounding box
-    res[center_y, center_x] = yaw + 1000 * pitch + 1000000 * roll
+    # pack yaw, pitch and roll data into a single value where in the fomat rrrpppyyy in the center of the face's bounding box and bring it into [0, 1) range
+    res[center_y, center_x] = (yaw + 1000 * pitch + 1000000 * roll) / 360360360
     return res
 
 def get_gaze_dir_datamap(var: dict, orig_h: int, orig_w: int, h: int, w: int) -> torch.Tensor:
@@ -552,7 +552,7 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str, processor: 
     orig_w = extended_sg["scene"]["dimensions"]["width"]
     # initialize the output
     #features = torch.zeros((1, 64, ds_h, ds_w))
-    features = torch.zeros((1, 41, ds_h, ds_w))
+    features = torch.zeros((1, 42, ds_h, ds_w))
     # cycle through every object
     for o in extended_sg["objects"]:
         # keep the object's bounding box
@@ -576,7 +576,8 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str, processor: 
     #     # add head pose and gaze direction data to the corresponding data map areas
     #     features[0, 58] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
     #     features[0, 59] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
-        features[0, 40] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
+        features[0, 40] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
+        features[0, 41] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
     # # read original image, convert it into RGB format and resize it into the needed shape
     # img = cv2.imread("data/input/images/" + image_file)
     # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
