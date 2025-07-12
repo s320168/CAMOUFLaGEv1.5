@@ -294,7 +294,7 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
         validation_image = Image.open("data/input/images/" + validation_image).convert("RGB")
 
         images = []
-        with torch.autocast("cuda"), torch.no_grad():
+        with torch.no_grad(): #torch.autocast("cuda"), 
             with torch.inference_mode():
                 if ipAdapterTrainer.t2i_adapter is None:
                     res = None

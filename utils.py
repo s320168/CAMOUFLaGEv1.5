@@ -512,8 +512,8 @@ def get_gaze_dir_datamap(var: dict, orig_h: int, orig_w: int, h: int, w: int) ->
 
 def get_palette_datamap(img: np.array, h: int, w: int) -> torch.Tensor:
     # resize image to get a 1/8 downsample
-    img = cv2.resize(img, (h, w), interpolation=cv2.INTER_LINEAR)
-    Z = img.reshape((-1, 3))
+    img_r = cv2.resize(img, (h, w), interpolation=cv2.INTER_LINEAR)
+    Z = img_r.reshape((-1, 3))
     Z = np.float32(Z)
     # define criteria
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
@@ -524,8 +524,8 @@ def get_palette_datamap(img: np.array, h: int, w: int) -> torch.Tensor:
     label_flat = label.flatten()
     # compose final output using color palette stored in center at the indexes stored in label_flat
     res = center[label_flat]
-    # rehape to the resized image dimensions
-    res = res.reshape(img.shape)
+    # rehape to the resized image dimensions and bring values in [0, 1) range
+    res = res.reshape(img_r.shape) / 255
     return torch.from_numpy(res).permute(2, 0, 1)
 
 def get_body_datamap(img: np.array, h: int, w: int, processor: OpenposeDetector) -> torch.Tensor:
@@ -551,8 +551,7 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str, processor: 
     orig_h = extended_sg["scene"]["dimensions"]["height"]
     orig_w = extended_sg["scene"]["dimensions"]["width"]
     # initialize the output
-    #features = torch.zeros((1, 64, ds_h, ds_w))
-    features = torch.zeros((1, 60, ds_h, ds_w))
+    features = torch.zeros((1, 64, ds_h, ds_w))
     # cycle through every object
     for o in extended_sg["objects"]:
         # keep the object's bounding box
@@ -580,12 +579,12 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str, processor: 
         # add head pose and gaze direction data to the corresponding data map areas
         features[0, 58] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
         features[0, 59] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
-    # # read original image, convert it into RGB format and resize it into the needed shape
-    # img = cv2.imread("data/input/images/" + image_file)
-    # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    # img = cv2.resize(img, (h, w), interpolation=cv2.INTER_LINEAR)
-    # # add color palette datamap
-    # features[0, 60:63] = get_palette_datamap(img, ds_h, ds_w)
-    # # add body pose datamap
-    # features[0, 63] = get_body_datamap(img, ds_h, ds_w, processor)
+    # read original image, convert it into RGB format and resize it into the needed shape
+    img = cv2.imread("data/input/images/" + image_file)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = cv2.resize(img, (h, w), interpolation=cv2.INTER_LINEAR)
+    # add color palette datamap
+    features[0, 60:63] = get_palette_datamap(img, ds_h, ds_w)
+    # add body pose datamap
+    features[0, 63] = get_body_datamap(img, ds_h, ds_w, processor)
     return features
