@@ -586,5 +586,5 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str, processor: 
     # add color palette datamap
     features[0, 60:63] = get_palette_datamap(img, ds_h, ds_w)
     # add body pose datamap
-    features[0, 63] = get_body_datamap(img, ds_h, ds_w, processor)
+    #features[0, 63] = get_body_datamap(img, ds_h, ds_w, processor)
     return features
