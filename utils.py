@@ -539,7 +539,7 @@ def get_body_datamap(img: np.array, h: int, w: int, processor: OpenposeDetector)
     # get the greyscale version of the image
     grayImage = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     # turn the greyscale image into a black and white one
-    _, blackAndWhiteImage = cv2.threshold(grayImage, 1, 255, cv2.THRESH_BINARY)
+    _, blackAndWhiteImage = cv2.threshold(grayImage, 1, 1, cv2.THRESH_BINARY)
     return torch.from_numpy(blackAndWhiteImage)
 
 
@@ -586,5 +586,5 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str, processor: 
     # add color palette datamap
     features[0, 60:63] = get_palette_datamap(img, ds_h, ds_w)
     # add body pose datamap
-    #features[0, 63] = get_body_datamap(img, ds_h, ds_w, processor)
+    features[0, 63] = get_body_datamap(img, ds_h, ds_w, processor)
     return features
