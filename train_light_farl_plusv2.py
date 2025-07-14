@@ -80,9 +80,10 @@ def main():
     # ip-adapter-plus
     ip_adapter = init_ip_adapter(num_tokens=16, unet=unet, image_encoder=image_encoder, usev2=args.usev2,
                                  t2i_adapter=FacerAdapter() if args.use_t2i else None)
-    
+
+    # define OpenPose model and transfer it on the device used
     if args.use_t2i is not None:
-        openpose_processor = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
+        openpose_processor = OpenposeDetector.from_pretrained('lllyasviel/ControlNet').to(accelerator.device)
 
     if args.load_adapter_path is not None:
         ip_adapter.load_state_dict(torch.load(args.load_adapter_path), strict=False)
@@ -94,8 +95,8 @@ def main():
 
     # set_device_dtype(accelerator.device, weight_dtype, vae, unet, text_encoder, image_encoder, ip_adapter)
 
-    vae, unet, text_encoder, image_encoder, ip_adapter = accelerator.prepare(
-        vae, unet, text_encoder, image_encoder, ip_adapter
+    vae, unet, text_encoder, image_encoder, ip_adapter, openpose_processor = accelerator.prepare(
+        vae, unet, text_encoder, image_encoder, ip_adapter, openpose_processor
     )
 
     # optimizer
@@ -294,7 +295,7 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
         validation_image = Image.open("data/input/images/" + validation_image).convert("RGB")
 
         images = []
-        with torch.no_grad(): #torch.autocast("cuda"), 
+        with torch.autocast("cuda"), torch.no_grad():
             with torch.inference_mode():
                 if ipAdapterTrainer.t2i_adapter is None:
                     res = None

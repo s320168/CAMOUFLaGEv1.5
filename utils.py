@@ -530,7 +530,7 @@ def get_palette_datamap(img: np.array, h: int, w: int) -> torch.Tensor:
 
 def get_body_datamap(img: np.array, h: int, w: int, processor: OpenposeDetector) -> torch.Tensor:
     # get the pose estimation map from Openpose and convert it to numpy array
-    openpose_image = processor(img, detect_resolution=img.shape[0], image_resolution=img.shape[0])
+    openpose_image = processor(img, include_hand=True, include_face=True, detect_resolution=img.shape[0], image_resolution=img.shape[0])
     open_cv_image = np.array(openpose_image)
     # convert RGB to BGR
     open_cv_image = open_cv_image[:, :, ::-1].copy()
@@ -585,6 +585,8 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str, processor: 
     img = cv2.resize(img, (h, w), interpolation=cv2.INTER_LINEAR)
     # add color palette datamap
     features[0, 60:63] = get_palette_datamap(img, ds_h, ds_w)
-    # add body pose datamap
-    features[0, 63] = get_body_datamap(img, ds_h, ds_w, processor)
+    # for some reason OpenPose doesn't work with torch.autocast
+    with torch.autocast(device_type="cuda", enabled=False):
+        # add body pose datamap
+        features[0, 63] = get_body_datamap(img, ds_h, ds_w, processor)
     return features
