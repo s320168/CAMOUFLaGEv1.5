@@ -588,5 +588,5 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str, processor: 
     # for some reason OpenPose doesn't work with torch.autocast
     with torch.autocast(device_type="cuda", enabled=False):
         # add body pose datamap
-        features[0, 63] = get_body_datamap(img, ds_h, ds_w, processor)
+        features[0, 63] = torch.from_numpy(cv2.imread("data/input/openpose" + image_file))
     return features

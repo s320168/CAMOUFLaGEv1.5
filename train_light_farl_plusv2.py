@@ -95,8 +95,8 @@ def main():
 
     # set_device_dtype(accelerator.device, weight_dtype, vae, unet, text_encoder, image_encoder, ip_adapter)
 
-    vae, unet, text_encoder, image_encoder, ip_adapter, openpose_processor = accelerator.prepare(
-        vae, unet, text_encoder, image_encoder, ip_adapter, openpose_processor
+    vae, unet, text_encoder, image_encoder, ip_adapter = accelerator.prepare(
+        vae, unet, text_encoder, image_encoder, ip_adapter
     )
 
     # optimizer

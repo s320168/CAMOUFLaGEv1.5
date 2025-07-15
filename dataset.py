@@ -9,6 +9,8 @@ from transformers import CLIPImageProcessor
 from torch.utils.data import Dataset
 from utils import get_datamaps
 import json
+import cv2
+import numpy as np
 
 
 class MyDataset(Dataset):
@@ -39,6 +41,7 @@ class MyDataset(Dataset):
         self.use_t2i = use_t2i
         if self.use_t2i is not None and pose_processor is not None:
             self.pose_processor = pose_processor
+            self.pose_preprocessing()
 
     def __getitem__(self, idx):
         item = self.data.iloc[idx]
@@ -99,6 +102,29 @@ class MyDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
+    
+    def pose_preprocessing(self):
+        h = w = self.size // 8
+        for i in range(len(self.data)):
+            item = self.data.iloc[i]
+            image_file = item["file_name"]
+
+            # read original image, convert it into RGB format and resize it into the needed shape
+            img = cv2.imread("data/input/images/" + image_file)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = cv2.resize(img, (self.size, self.size), interpolation=cv2.INTER_LINEAR)
+            # get the pose estimation map from Openpose and convert it to numpy array
+            openpose_image = self.pose_processor(img, include_hand=True, include_face=True, detect_resolution=img.shape[0], image_resolution=img.shape[0])
+            open_cv_image = np.array(openpose_image)
+            # convert RGB to BGR
+            open_cv_image = open_cv_image[:, :, ::-1].copy()
+            # resize image to the downsampled shape
+            img = cv2.resize(open_cv_image, (h, w), interpolation=cv2.INTER_LINEAR)
+            # get the greyscale version of the image
+            grayImage = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            # turn the greyscale image into a black and white one
+            _, blackAndWhiteImage = cv2.threshold(grayImage, 1, 1, cv2.THRESH_BINARY)
+            cv2.imwrite("data/input/openpose/" + image_file, blackAndWhiteImage)
 
 
 def collate_fn(data):
