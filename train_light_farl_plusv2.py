@@ -308,7 +308,7 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
                     # load the extended scene graph file in a dictionary
                     with open("data/input/extended_sg/extended_sg_" + image_file.split(".")[0] + ".json") as f:
                         ext_sg = json.load(f)
-                    res = get_datamaps(ext_sg, shape, shape, image_file, pose_processor)
+                    res = get_datamaps(ext_sg, shape, shape, image_file)
 
             # this resize makes dimensionality related errors disappear (there could be a better way to do this)
             crop_image = validation_image.resize((512, 512), Image.Resampling.BILINEAR)

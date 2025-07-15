@@ -90,7 +90,7 @@ class MyDataset(Dataset):
             raw_image = ((image / 2 + 0.5) * 255).unsqueeze(0)
             with torch.inference_mode():
                 shape = image.shape[-1]
-                res = get_datamaps(ext_sg, shape, shape, image_file, self.pose_processor)
+                res = get_datamaps(ext_sg, shape, shape, image_file)
 
         return {
             "image": image,
@@ -124,7 +124,7 @@ class MyDataset(Dataset):
             grayImage = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             # turn the greyscale image into a black and white one
             _, blackAndWhiteImage = cv2.threshold(grayImage, 1, 1, cv2.THRESH_BINARY)
-            cv2.imwrite("data/input/openpose/" + image_file, blackAndWhiteImage)
+            cv2.imwrite("data/input/openpose/" + image_file.split(".")[0] + ".png", blackAndWhiteImage) 
 
 
 def collate_fn(data):

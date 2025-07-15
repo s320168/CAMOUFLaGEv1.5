@@ -14,9 +14,6 @@ from transformers import CLIPVisionModelWithProjection, CLIPImageProcessor
 from ip_adapter import IPAdapterPlus, IPAdapterPlusXL
 from ip_adapter.utils import FacerAdapter
 
-from controlnet_aux import OpenposeDetector
-
-
 class AttributeDict(dict):
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
@@ -528,22 +525,14 @@ def get_palette_datamap(img: np.array, h: int, w: int) -> torch.Tensor:
     res = res.reshape(img_r.shape) / 255
     return torch.from_numpy(res).permute(2, 0, 1)
 
-def get_body_datamap(img: np.array, h: int, w: int, processor: OpenposeDetector) -> torch.Tensor:
-    # get the pose estimation map from Openpose and convert it to numpy array
-    openpose_image = processor(img, include_hand=True, include_face=True, detect_resolution=img.shape[0], image_resolution=img.shape[0])
-    open_cv_image = np.array(openpose_image)
-    # convert RGB to BGR
-    open_cv_image = open_cv_image[:, :, ::-1].copy()
-    # resize image to the downsampled shape
-    img = cv2.resize(open_cv_image, (h, w), interpolation=cv2.INTER_LINEAR)
+def get_body_datamap(image_file: str) -> torch.Tensor:
+    # read the image's corresponding Openpose output
+    img = cv2.imread("data/input/openpose/" + image_file.split(".")[0] + ".png")
     # get the greyscale version of the image
     grayImage = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # turn the greyscale image into a black and white one
-    _, blackAndWhiteImage = cv2.threshold(grayImage, 1, 1, cv2.THRESH_BINARY)
-    return torch.from_numpy(blackAndWhiteImage)
+    return torch.from_numpy(grayImage)
 
-
-def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str, processor: OpenposeDetector) -> torch.Tensor:
+def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Tensor:
     # compute the data maps shape as a 1/8 downsample of the cropped image
     ds_h = h // 8
     ds_w = w // 8
@@ -585,8 +574,6 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str, processor: 
     img = cv2.resize(img, (h, w), interpolation=cv2.INTER_LINEAR)
     # add color palette datamap
     features[0, 60:63] = get_palette_datamap(img, ds_h, ds_w)
-    # for some reason OpenPose doesn't work with torch.autocast
-    with torch.autocast(device_type="cuda", enabled=False):
-        # add body pose datamap
-        features[0, 63] = torch.from_numpy(cv2.imread("data/input/openpose" + image_file))
+    # add body pose datamap
+    features[0, 63] = get_body_datamap(image_file)
     return features
