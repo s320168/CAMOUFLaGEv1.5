@@ -69,11 +69,6 @@ def add_objects_depth(input_data: dict, output_data: dict, input_filename: str, 
             if mean_depth > max_depth:
                 max_depth = mean_depth
                 instance_max_depth = i
-            # # keep track of the instance most present in the bounding box
-            # if b[1].get_instance_norm(i) > max_norm_presence:
-            #     max_norm_presence = b[1].get_instance_norm(i)
-            #     instance_max_norm = i
-            # compute the average depth of the instance
         # if there is an instance almost completely or entirely contained in the bounding box: select it as the base used to get depth data
         if max_ratio > float(config.threshold.completely_contained):
             choice = instance_max_ratio
@@ -86,12 +81,6 @@ def add_objects_depth(input_data: dict, output_data: dict, input_filename: str, 
         else:
             choice = instance_max_depth
             depth = max_depth
-        # # if no instance is almost completely contained in the bounding box, proceed on selecting the prevalent one in the box 
-        # else:
-        #     choice = instance_max_norm
-        #     depth_data = np_frame_d[b[1].get_y0():b[1].get_y1()+1, b[1].get_x0():b[1].get_x1()+1] * np.where(np_frame_p[b[1].get_y0():b[1].get_y1()+1, b[1].get_x0():b[1].get_x1()+1] == choice, 1, 0)
-        #     # compute mean depth of the selected pixels
-        #     mean_depth = depth_data.sum()/np.where(np_frame_p[b[1].get_y0():b[1].get_y1()+1, b[1].get_x0():b[1].get_x1()+1] == choice, 1, 0).sum()
         # assign depth data to object                
         output_data["objects"][b[0]]["depth"] = round(depth, 2)
 
@@ -290,10 +279,10 @@ def add_positional_relations(output_data: dict, config: dict) -> None:
                 res_x = x_axis_distance(bbox_i, bbox_j)
                 if res_x > 0 and abs(res_x) > bbox_j.get_x_dimension() * config.threshold.positional_relation_tolerance:
                     # right-position case
-                    relation = relation+"-right" if relation != "" else "right"
+                    relation = relation+"-right of" if relation != "" else "to the right of"
                 elif res_x < 0 and abs(res_x) > bbox_j.get_x_dimension() * config.threshold.positional_relation_tolerance:
                     # left-position case
-                    relation = relation+"-left" if relation != "" else "left"
+                    relation = relation+"-left of" if relation != "" else "to the left of"
             if relation != "":
                 output_data["relationships"].append({
                     "source": i,

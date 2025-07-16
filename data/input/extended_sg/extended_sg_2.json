@@ -226,28 +226,8 @@
  "relationships": [
   {
    "source": 0,
-   "target": 4,
-   "type": "has"
-  },
-  {
-   "source": 4,
-   "target": 0,
-   "type": "of"
-  },
-  {
-   "source": 0,
-   "target": 4,
-   "type": "has"
-  },
-  {
-   "source": 0,
    "target": 5,
    "type": "has"
-  },
-  {
-   "source": 4,
-   "target": 0,
-   "type": "of"
   },
   {
    "source": 0,
@@ -277,27 +257,27 @@
   {
    "source": 1,
    "target": 3,
-   "type": "below-left"
+   "type": "below-left of"
   },
   {
    "source": 1,
    "target": 4,
-   "type": "below-left"
+   "type": "below-left of"
   },
   {
    "source": 2,
    "target": 3,
-   "type": "below-left"
+   "type": "below-left of"
   },
   {
    "source": 2,
    "target": 4,
-   "type": "below-left"
+   "type": "below-left of"
   },
   {
    "source": 3,
    "target": 4,
-   "type": "above-left"
+   "type": "above-left of"
   },
   {
    "source": 5,

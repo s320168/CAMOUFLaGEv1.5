@@ -16,9 +16,9 @@ threshold: # task specific thresholds
 
 filesystem: # paths containing the used data
   # directory containing identikits produced by FRESCO
-  input: ../data/input/FRESCO/identikits/
+  input: ../data/input/identikits/
   # directory containing panoptic segmentation of the images
-  panoptic: ../data/input/FRESCO/seg_coco/
+  panoptic: ../data/input/seg_coco/
   # directory containing depth estimation of the images
   depth: ../data/input/depth/
   # directory containing scene graphs of the images

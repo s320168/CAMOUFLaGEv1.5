@@ -329,11 +329,6 @@
  ],
  "relationships": [
   {
-   "source": 2,
-   "target": 1,
-   "type": "holding"
-  },
-  {
    "source": 0,
    "target": 1,
    "type": "in front of"
@@ -341,7 +336,7 @@
   {
    "source": 0,
    "target": 2,
-   "type": "right"
+   "type": "to the right of"
   },
   {
    "source": 0,
@@ -351,7 +346,7 @@
   {
    "source": 0,
    "target": 4,
-   "type": "below-left"
+   "type": "below-left of"
   },
   {
    "source": 0,
@@ -386,17 +381,17 @@
   {
    "source": 2,
    "target": 4,
-   "type": "below-left"
+   "type": "below-left of"
   },
   {
    "source": 2,
    "target": 5,
-   "type": "below-left"
+   "type": "below-left of"
   },
   {
    "source": 3,
    "target": 4,
-   "type": "above-left"
+   "type": "above-left of"
   },
   {
    "source": 3,

@@ -241,14 +241,14 @@
    "type": "riding"
   },
   {
-   "source": 1,
+   "source": 2,
    "target": 0,
-   "type": "near"
+   "type": "on"
   },
   {
    "source": 0,
    "target": 1,
-   "type": "right"
+   "type": "to the right of"
   },
   {
    "source": 0,
@@ -258,12 +258,12 @@
   {
    "source": 0,
    "target": 3,
-   "type": "below-left"
+   "type": "below-left of"
   },
   {
    "source": 0,
    "target": 4,
-   "type": "below-right"
+   "type": "below-right of"
   },
   {
    "source": 0,
@@ -273,12 +273,12 @@
   {
    "source": 1,
    "target": 2,
-   "type": "below-left"
+   "type": "below-left of"
   },
   {
    "source": 1,
    "target": 3,
-   "type": "below-left"
+   "type": "below-left of"
   },
   {
    "source": 1,
@@ -288,7 +288,7 @@
   {
    "source": 1,
    "target": 5,
-   "type": "left"
+   "type": "to the left of"
   },
   {
    "source": 2,
@@ -298,7 +298,7 @@
   {
    "source": 2,
    "target": 4,
-   "type": "above-right"
+   "type": "above-right of"
   },
   {
    "source": 2,
@@ -308,7 +308,7 @@
   {
    "source": 3,
    "target": 4,
-   "type": "right"
+   "type": "to the right of"
   },
   {
    "source": 3,
@@ -318,7 +318,7 @@
   {
    "source": 4,
    "target": 5,
-   "type": "left"
+   "type": "to the left of"
   },
   {
    "source": 6,

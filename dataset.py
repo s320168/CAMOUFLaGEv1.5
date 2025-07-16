@@ -59,6 +59,25 @@ class MyDataset(Dataset):
             ext_sg = json.load(f)
 
         text = ext_sg["scene"]["single_action_caption"]
+        
+        # convert relationships triplets into the corresponding strings "subject relation object"
+        triplets = " "
+        for rel in ext_sg["relationships"]:
+            subj_hit = False
+            obj_hit = False
+            for obj in ext_sg["objects"]:
+                if obj["id"] == rel["source"] and not subj_hit:
+                    subj_hit = True
+                    subject = obj["type"]
+                elif obj["id"] == rel["target"] and not obj_hit:
+                    obj_hit = True
+                    object = obj["type"]
+                if subj_hit and obj_hit:
+                    triplets += f"{subject} {rel["type"]} {object}, "
+                    break
+
+        # concatenate triplets to the caption
+        text += triplets[:-2] + "."
 
         # read image
         # raw_image = Image.open(os.path.join(self.image_root_path, image_file))
