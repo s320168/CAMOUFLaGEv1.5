@@ -74,8 +74,9 @@ class MyDataset(Dataset):
                     obj_hit = True
                     object = obj["type"]
                 if subj_hit and obj_hit:
-                    if (triplets + f"{subject} {rel["type"]} {object}, ").count(" ") < 77:
-                        triplets += f"{subject} {rel["type"]} {object}, "
+                    next_triplets = triplets + f"{subject} {rel["type"]} {object}, "
+                    if next_triplets.count(" ") + next_triplets.count(",") + next_triplets.count("-") <= 77:
+                        triplets = next_triplets
                     else:
                         hit_max_len = True
                     break
