@@ -15,7 +15,7 @@ class StableDiffusionImg2ImgPipelineRes(StableDiffusionImg2ImgPipeline):
             image: PipelineImageInput = None,
             strength: float = 0.8,
             num_inference_steps: Optional[int] = 50,
-            guidance_scale: Optional[float] = 7.5,
+            guidance_scale: Optional[float] = 1.0, #7.5
             negative_prompt: Optional[Union[str, List[str]]] = None,
             num_images_per_prompt: Optional[int] = 1,
             eta: Optional[float] = 0.0,

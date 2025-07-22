@@ -61,7 +61,8 @@ class MyDataset(Dataset):
         text = ext_sg["scene"]["single_action_caption"]
         
         # convert relationships triplets into the corresponding strings "subject relation object"
-        triplets = " "
+        triplets = ""
+        hit_max_len = False
         for rel in ext_sg["relationships"]:
             subj_hit = False
             obj_hit = False
@@ -73,11 +74,16 @@ class MyDataset(Dataset):
                     obj_hit = True
                     object = obj["type"]
                 if subj_hit and obj_hit:
-                    triplets += f"{subject} {rel["type"]} {object}, "
+                    if (triplets + f"{subject} {rel["type"]} {object}, ").count(" ") < 77:
+                        triplets += f"{subject} {rel["type"]} {object}, "
+                    else:
+                        hit_max_len = True
                     break
+            if hit_max_len:
+                break
 
         # concatenate triplets to the caption
-        text += triplets[:-2] + "."
+        triplets = triplets[1:-2] + "."
 
         # read image
         # raw_image = Image.open(os.path.join(self.image_root_path, image_file))
@@ -92,12 +98,22 @@ class MyDataset(Dataset):
             drop_image_embed = 1
         elif rand_num < (self.i_drop_rate + self.t_drop_rate):
             text = ""
+            triplets = ""
         elif rand_num < (self.i_drop_rate + self.t_drop_rate + self.ti_drop_rate):
             text = ""
+            triplets = ""
             drop_image_embed = 1
         # get text and tokenize
         text_input_ids = self.tokenizer(
             text,
+            max_length=self.tokenizer.model_max_length,
+            padding="max_length",
+            truncation=True,
+            return_tensors="pt"
+        ).input_ids
+        
+        triplets_input_ids = self.tokenizer(
+            triplets,
             max_length=self.tokenizer.model_max_length,
             padding="max_length",
             truncation=True,
@@ -114,6 +130,7 @@ class MyDataset(Dataset):
         return {
             "image": image,
             "text_input_ids": text_input_ids,
+            "triplets_input_ids": triplets_input_ids,
             "clip_image": clip_image,
             "drop_image_embed": drop_image_embed,
             "facer": res
@@ -149,6 +166,7 @@ class MyDataset(Dataset):
 def collate_fn(data):
     images = torch.stack([example["image"] for example in data])
     text_input_ids = torch.cat([example["text_input_ids"] for example in data], dim=0)
+    triplets_input_ids = torch.cat([example["triplets_input_ids"] for example in data], dim=0)
     clip_images = torch.cat([example["clip_image"] for example in data], dim=0)
     drop_image_embeds = [example["drop_image_embed"] for example in data]
     if data[0]["facer"] is None:
@@ -159,6 +177,7 @@ def collate_fn(data):
     return {
         "images": images,
         "text_input_ids": text_input_ids,
+        "triplets_input_ids": triplets_input_ids,
         "clip_images": clip_images,
         "drop_image_embeds": drop_image_embeds,
         "facer": facer

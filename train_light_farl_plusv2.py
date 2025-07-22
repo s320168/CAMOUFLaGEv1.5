@@ -189,14 +189,16 @@ def main():
                                                  output_hidden_states=True).hidden_states[-2]
 
                 with torch.no_grad():
-                    encoder_hidden_states = text_encoder(batch["text_input_ids"])[0]
+                    encoder_hidden_states_caption = text_encoder(batch["text_input_ids"])[0]
+                    encoder_hidden_states_triplets = text_encoder(batch["triplets_input_ids"])[0]
+                    #encoder_hidden_states = torch.cat([encoder_hidden_states_caption, encoder_hidden_states_triplets])
 
                 if args.use_t2i:
                     image_embeds2 = batch["facer"].to(accelerator.device)
                 else:
                     image_embeds2 = None
 
-                noise_pred = ip_adapter(unet, noisy_latents, timesteps, encoder_hidden_states, image_embeds,
+                noise_pred = ip_adapter(unet, noisy_latents, timesteps, encoder_hidden_states_caption, encoder_hidden_states_triplets, image_embeds,
                                         image_embeds2=image_embeds2)
 
                 loss = F.mse_loss(noise_pred.float(), noise.float(), reduction="mean")
@@ -293,6 +295,8 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
     for validation_prompt, validation_image in zip(validation_prompts, validation_images):
         image_file = validation_image
         validation_image = Image.open("data/input/images/" + validation_image).convert("RGB")
+        validation_prompt = validation_prompt.split(".")
+        validation_prompt[1] = validation_prompt[1][1:]
 
         images = []
         with torch.autocast("cuda"), torch.no_grad():
@@ -314,8 +318,8 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
             crop_image = validation_image.resize((512, 512), Image.Resampling.BILINEAR)
             # using crop_image instead of validation_image in the arguments for the reason above
             tmp = ip_model.generate(pil_image=crop_image, num_samples=args.num_validation_images,
-                                    num_inference_steps=30, prompt=validation_prompt, seed=args.seed,
-                                    negative_prompt=token, image=crop_image, strength=0.9,
+                                    num_inference_steps=30, prompt=validation_prompt[0], prompt_triplets=validation_prompt[1], 
+                                    seed=args.seed, negative_prompt=token, image=crop_image, strength=0.9,
                                     scale=0.8 if len(validation_prompt) > 1 else 1.0,
                                     down_block_additional_residuals=None if res is None else ipAdapterTrainer.t2i_adapter(
                                         res.to(accelerator.device)))
