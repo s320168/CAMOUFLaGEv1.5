@@ -41,7 +41,7 @@ class MyDataset(Dataset):
         self.use_t2i = use_t2i
         if self.use_t2i is not None and pose_processor is not None:
             self.pose_processor = pose_processor
-            self.pose_preprocessing()
+            self.preprocessing()
 
     def __getitem__(self, idx):
         item = self.data.iloc[idx]
@@ -59,7 +59,7 @@ class MyDataset(Dataset):
             ext_sg = json.load(f)
 
         text = ext_sg["scene"]["single_action_caption"]
-        
+
         # convert relationships triplets into the corresponding strings "subject relation object"
         triplets = ""
         hit_max_len = False
@@ -75,7 +75,7 @@ class MyDataset(Dataset):
                     object = obj["type"]
                 if subj_hit and obj_hit:
                     next_triplets = triplets + f"{subject} {rel["type"]} {object}, "
-                    if next_triplets.count(" ") + next_triplets.count(",") + next_triplets.count("-") <= 77:
+                    if next_triplets.count(" ") + next_triplets.count(",")-1 + next_triplets.count("-")*2 <= 77:
                         triplets = next_triplets
                     else:
                         hit_max_len = True
@@ -84,7 +84,7 @@ class MyDataset(Dataset):
                 break
 
         # concatenate triplets to the caption
-        triplets = triplets[1:-2] + "."
+        triplets = triplets[:-2]
 
         # read image
         # raw_image = Image.open(os.path.join(self.image_root_path, image_file))
@@ -139,30 +139,56 @@ class MyDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
-    
-    def pose_preprocessing(self):
+
+    def pose_preprocessing(self, img: np.ndarray, h: int, w: int, image_file: str):
+        # get the pose estimation map from Openpose and convert it to numpy array
+        openpose_image = self.pose_processor(np.uint8(img*255), include_hand=True, include_face=True, detect_resolution=img.shape[0], image_resolution=img.shape[0])
+        open_cv_image = np.array(openpose_image)
+        # convert RGB to BGR
+        open_cv_image = open_cv_image[:, :, ::-1].copy()
+        # resize image to the downsampled shape
+        image = cv2.resize(open_cv_image, (h, w), interpolation=cv2.INTER_LINEAR)
+        # get the greyscale version of the image
+        grayImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        # turn the greyscale image into a black and white one
+        _, blackAndWhiteImage = cv2.threshold(grayImage, 1, 1, cv2.THRESH_BINARY)
+        cv2.imwrite("data/input/openpose/" + image_file.split(".")[0] + ".png", blackAndWhiteImage)
+
+    def palette_preprocessing(self, img: np.array, h: int, w: int, image_file: str):
+        # resize image to get a 1/8 downsample
+        img_r = cv2.resize(img*255, (h, w), interpolation=cv2.INTER_LINEAR)
+        Z = img_r.reshape((-1, 3))
+        Z = np.float32(Z)
+        # define criteria
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+        # number of colors in the palette
+        K = 8
+        # apply kmeans
+        _, label, center = cv2.kmeans(Z, K, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        label_flat = label.flatten()
+        # compose final output using color palette stored in center at the indexes stored in label_flat
+        res = center[label_flat]
+        # rehape to the resized image dimensions and bring values in [0, 1) range
+        res = res.reshape(img_r.shape)
+        cv2.imwrite("data/input/palette/" + image_file.split(".")[0] + ".png", res)
+
+    def preprocessing(self):
         h = w = self.size // 8
         for i in range(len(self.data)):
             item = self.data.iloc[i]
             image_file = item["file_name"]
 
             # read original image, convert it into RGB format and resize it into the needed shape
-            img = cv2.imread("data/input/images/" + image_file)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            img = cv2.resize(img, (self.size, self.size), interpolation=cv2.INTER_LINEAR)
-            # get the pose estimation map from Openpose and convert it to numpy array
-            openpose_image = self.pose_processor(img, include_hand=True, include_face=True, detect_resolution=img.shape[0], image_resolution=img.shape[0])
-            open_cv_image = np.array(openpose_image)
-            # convert RGB to BGR
-            open_cv_image = open_cv_image[:, :, ::-1].copy()
-            # resize image to the downsampled shape
-            img = cv2.resize(open_cv_image, (h, w), interpolation=cv2.INTER_LINEAR)
-            # get the greyscale version of the image
-            grayImage = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            # turn the greyscale image into a black and white one
-            _, blackAndWhiteImage = cv2.threshold(grayImage, 1, 1, cv2.THRESH_BINARY)
-            cv2.imwrite("data/input/openpose/" + image_file.split(".")[0] + ".png", blackAndWhiteImage) 
-
+            raw_image = Image.open("data/input/images/" + image_file)
+            tfms = transforms.Compose([
+                transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
+                transforms.CenterCrop(512),
+                transforms.ToTensor(),
+            ])
+            image = tfms(raw_image.convert("RGB"))
+            img = image.numpy().transpose(1, 2, 0)
+            self.pose_preprocessing(img, h, w, image_file)
+            self.palette_preprocessing(img, h, w, image_file)
 
 def collate_fn(data):
     images = torch.stack([example["image"] for example in data])

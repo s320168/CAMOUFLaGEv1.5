@@ -239,6 +239,16 @@ def parse_args():
             "Whether or not to use t2i adapter"
         ),
     )
+
+    parser.add_argument(
+        "--use_triplets",
+        action="store_true",
+        help=(
+            "Whether or not to use relation triplets (needed to be added in the same string containing caption in the format"
+            "[caption]. [triplets list] when specifying validation data"
+        ),
+    )
+
     parser.add_argument("--noise_offset", type=float, default=None, help="noise offset")
 
     parser.add_argument("--usev2", action="store_true", help="usev2")
@@ -507,23 +517,10 @@ def get_gaze_dir_datamap(var: dict, orig_h: int, orig_w: int, h: int, w: int) ->
     res[y1, x1] = res[y2, x2] = (yaw + 100000 * pitch) / 3600036000
     return res
 
-def get_palette_datamap(img: np.array, h: int, w: int) -> torch.Tensor:
-    # resize image to get a 1/8 downsample
-    img_r = cv2.resize(img, (h, w), interpolation=cv2.INTER_LINEAR)
-    Z = img_r.reshape((-1, 3))
-    Z = np.float32(Z)
-    # define criteria
-    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-    # number of colors in the palette
-    K = 8
-    # apply kmeans
-    _, label, center = cv2.kmeans(Z, K, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-    label_flat = label.flatten()
-    # compose final output using color palette stored in center at the indexes stored in label_flat
-    res = center[label_flat]
-    # rehape to the resized image dimensions and bring values in [0, 1) range
-    res = res.reshape(img_r.shape) / 255
-    return torch.from_numpy(res).permute(2, 0, 1)
+def get_palette_datamap(image_file: str) -> torch.Tensor:
+    # read the image's corresponding color palette
+    img = cv2.imread("data/input/palette/" + image_file.split(".")[0] + ".png")
+    return torch.from_numpy(img/255).permute(2, 0, 1)
 
 def get_body_datamap(image_file: str) -> torch.Tensor:
     # read the image's corresponding Openpose output
@@ -568,12 +565,8 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Te
         # add head pose and gaze direction data to the corresponding data map areas
         features[0, 58] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
         features[0, 59] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
-    # read original image, convert it into RGB format and resize it into the needed shape
-    img = cv2.imread("data/input/images/" + image_file)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    img = cv2.resize(img, (h, w), interpolation=cv2.INTER_LINEAR)
     # add color palette datamap
-    features[0, 60:63] = get_palette_datamap(img, ds_h, ds_w)
+    features[0, 60:63] = get_palette_datamap(image_file)
     # add body pose datamap
     features[0, 63] = get_body_datamap(image_file)
     return features

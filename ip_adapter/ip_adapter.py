@@ -140,7 +140,8 @@ class IPAdapter:
 
         if not isinstance(prompt, List):
             prompt = [prompt] * num_prompts
-            prompt_triplets = [prompt_triplets] * num_prompts
+            if prompt_triplets is not None:
+                prompt_triplets = [prompt_triplets] * num_prompts
         if not isinstance(negative_prompt, List):
             negative_prompt = [negative_prompt] * num_prompts
 
@@ -155,14 +156,18 @@ class IPAdapter:
             prompt_embeds = self.pipe._encode_prompt(
                 prompt, device=self.device, num_images_per_prompt=num_samples, do_classifier_free_guidance=True,
                 negative_prompt=negative_prompt)
-            prompt_embeds_triplets = self.pipe._encode_prompt(
-                prompt_triplets, device=self.device, num_images_per_prompt=num_samples, do_classifier_free_guidance=True,
-                negative_prompt=negative_prompt)
             negative_prompt_embeds_, prompt_embeds_ = prompt_embeds.chunk(2)
-            negative_prompt_embeds_triplets_, prompt_embeds_triplets_ = prompt_embeds_triplets.chunk(2)
+            if prompt_triplets is not None:
+                prompt_embeds_triplets = self.pipe._encode_prompt(
+                    prompt_triplets, device=self.device, num_images_per_prompt=num_samples, do_classifier_free_guidance=True,
+                    negative_prompt=negative_prompt)
+                negative_prompt_embeds_triplets_, prompt_embeds_triplets_ = prompt_embeds_triplets.chunk(2)
 
-            prompt_embeds = torch.cat([prompt_embeds_, prompt_embeds_triplets_, image_prompt_embeds], dim=1)
-            negative_prompt_embeds = torch.cat([negative_prompt_embeds_, negative_prompt_embeds_triplets_, uncond_image_prompt_embeds], dim=1)
+                prompt_embeds = torch.cat([prompt_embeds_, prompt_embeds_triplets_, image_prompt_embeds], dim=1)
+                negative_prompt_embeds = torch.cat([negative_prompt_embeds_, negative_prompt_embeds_triplets_, uncond_image_prompt_embeds], dim=1)
+            else:
+                prompt_embeds = torch.cat([prompt_embeds_, image_prompt_embeds], dim=1)
+                negative_prompt_embeds = torch.cat([negative_prompt_embeds_, uncond_image_prompt_embeds], dim=1)
 
         generator = torch.Generator(self.device).manual_seed(seed) if seed is not None else None
         images = self.pipe(
