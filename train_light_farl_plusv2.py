@@ -1,5 +1,6 @@
 import itertools
 import os
+os.environ['HF_HOME'] = 'E:/Tesi_Silvano/weights/'
 from pathlib import Path
 import json
 
@@ -30,10 +31,12 @@ else:
 if is_wandb_available():
     import wandb
 
+import torchvision.transforms.functional as TF
+from torchvision import transforms
+
 with open("data/wandb.txt", "r") as f:
     k = f.read()
 wandb.login(key=k.strip())
-os.environ['HF_HOME'] = 'E:Tesi_Silvano/weights/'
 
 logger = get_logger(__name__)
 
@@ -294,9 +297,17 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
 
     image_logs = []
 
+    tfms = transforms.Compose([
+        transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
+        transforms.CenterCrop(512),
+        transforms.ToTensor()
+    ])
+
     for validation_prompt, validation_image in zip(validation_prompts, validation_images):
         image_file = validation_image
-        validation_image = Image.open("data/input/images/" + validation_image).convert("RGB")
+        raw_image = Image.open("data/input/images/" + image_file)
+        image = tfms(raw_image.convert("RGB"))
+        validation_image = TF.to_pil_image(image, mode="RGB")
         validation_prompt = validation_prompt.split(".")
         if args.use_triplets and len(validation_prompt[1]) > 0:
             validation_prompt[1] = validation_prompt[1][1:]
@@ -319,12 +330,10 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
                         ext_sg = json.load(f)
                     res = get_datamaps(ext_sg, shape, shape, image_file)
 
-            # this resize makes dimensionality related errors disappear (there could be a better way to do this)
-            crop_image = validation_image.resize((512, 512), Image.Resampling.BILINEAR)
             # using crop_image instead of validation_image in the arguments for the reason above
-            tmp = ip_model.generate(pil_image=crop_image, num_samples=args.num_validation_images,
+            tmp = ip_model.generate(pil_image=validation_image, num_samples=args.num_validation_images,
                                     num_inference_steps=30, prompt=validation_prompt[0], prompt_triplets=validation_prompt[1], 
-                                    seed=args.seed, negative_prompt=token, image=crop_image, strength=1.0,
+                                    seed=args.seed, negative_prompt=token, image=validation_image, strength=0.6,
                                     scale=0.8 if len(validation_prompt) > 1 else 1.0,
                                     down_block_additional_residuals=None if res is None else ipAdapterTrainer.t2i_adapter(
                                         res.to(accelerator.device)))
@@ -332,7 +341,7 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
         images.extend(tmp)
 
         image_logs.append(
-            {"validation_image": crop_image, "images": images, "validation_prompt": validation_prompt}
+            {"validation_image": validation_image, "images": images, "validation_prompt": validation_prompt}
         )
     for tracker in accelerator.trackers:
         if tracker.name == "tensorboard":
