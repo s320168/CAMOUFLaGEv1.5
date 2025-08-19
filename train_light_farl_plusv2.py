@@ -33,6 +33,7 @@ if is_wandb_available():
 
 import torchvision.transforms.functional as TF
 from torchvision import transforms
+from ldm.utils import instantiate_from_config
 
 with open("data/wandb.txt", "r") as f:
     k = f.read()
@@ -62,8 +63,38 @@ def main():
     noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
     tokenizer = CLIPTokenizer.from_pretrained(args.pretrained_model_name_or_path, subfolder="tokenizer")
     text_encoder = CLIPTextModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="text_encoder")
-    unet = UNet2DConditionModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="unet")
-    unet.set_attn_processor(AttnProcessor())
+    if args.use_gligen:
+        # define custom UNet when using GLIGEN method and corresponding grounding_tokenizer
+        unet = instantiate_from_config({
+            "target": "ldm.modules.diffusionmodules.openaimodel.UNetModel", 
+            "params": {
+                "image_size": 64,
+                "in_channels": 4,
+                "out_channels": 4,
+                "model_channels": 320,
+                "attention_resolutions": [ 4, 2, 1 ],
+                "num_res_blocks": 2,
+                "channel_mult": [ 1, 2, 4, 4 ],
+                "num_heads": 8,
+                "transformer_depth": 1,
+                "context_dim": 768,
+                "fuser_type": "gatedSA",
+                "use_checkpoint": True,
+
+                "grounding_tokenizer": {
+                    "target": "ldm.modules.diffusionmodules.text_grounding_net.PositionNet",
+                    "params": {
+                        "in_dim": 768,  
+                        "out_dim": 768
+                    }
+                }                            
+            }
+        })
+        grounding_tokenizer_input = instantiate_from_config({"target": "grounding_input.text_grounding_tokinzer_input.GroundingNetInput"})
+    else:
+        unet = UNet2DConditionModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="unet")
+        unet.set_attn_processor(AttnProcessor())
+        grounding_tokenizer_input = None
     image_encoder = CLIPVisionModelWithProjection.from_pretrained(args.image_encoder_path)
     # here would be added FRESCO and the selected SGG model loadings
 
@@ -111,7 +142,8 @@ def main():
     # dataloader
     dataset = MyDataset(args.data_file, tokenizer=tokenizer, size=args.resolution, use_t2i=args.use_t2i,
                         controller_tfms=CLIPImageProcessor(args.image_encoder_path), 
-                        pose_processor=openpose_processor if args.use_t2i is not None else None)
+                        pose_processor=openpose_processor if args.use_t2i is not None else None,
+                        use_gligen=args.use_gligen)
 
     tfms, controller_transforms = dataset.transform, dataset.controller_transforms
     train_dataloader = DataLoader(
@@ -198,13 +230,16 @@ def main():
                     else:
                         encoder_hidden_states_triplets = None
 
+                grounding_input = None
                 if args.use_t2i:
                     image_embeds2 = batch["facer"].to(accelerator.device)
+                    if args.use_gligen:
+                        grounding_input = grounding_tokenizer_input.prepare(batch)
                 else:
                     image_embeds2 = None
 
-                noise_pred = ip_adapter(unet, noisy_latents, timesteps, encoder_hidden_states_caption, encoder_hidden_states_triplets, image_embeds,
-                                        image_embeds2=image_embeds2)
+                noise_pred = ip_adapter(unet, grounding_tokenizer_input, noisy_latents, timesteps, encoder_hidden_states_caption, 
+                                        encoder_hidden_states_triplets, image_embeds, image_embeds2=image_embeds2, grounding_input=grounding_input)
 
                 loss = F.mse_loss(noise_pred.float(), noise.float(), reduction="mean")
 

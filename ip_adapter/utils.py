@@ -32,10 +32,15 @@ class IPAdapterTrainer(torch.nn.Module):
             self.load_from_checkpoint(ckpt_path)
 
     def forward(self, unet, noisy_latents, timesteps, encoder_hidden_states_caption, encoder_hidden_states_triplets, image_embeds, image_embeds2=None,
-                unet_added_cond_kwargs=None):
+                unet_added_cond_kwargs=None, grounding_input=None):
         ip_tokens = self.image_proj(image_embeds)
+        # check if relation triplets are being used
         if encoder_hidden_states_triplets is not None:
-            encoder_hidden_states = torch.cat([encoder_hidden_states_caption, encoder_hidden_states_triplets, ip_tokens], dim=1)
+            # check if GLIGEN method is being used
+            if grounding_input is not None:
+                print("Grounding input TODO")
+            else:
+                encoder_hidden_states = torch.cat([encoder_hidden_states_caption, encoder_hidden_states_triplets, ip_tokens], dim=1)
         else:
             encoder_hidden_states = torch.cat([encoder_hidden_states_caption, ip_tokens], dim=1)
         down_block_additional_residuals = None

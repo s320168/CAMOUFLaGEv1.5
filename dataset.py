@@ -14,8 +14,8 @@ import numpy as np
 
 
 class MyDataset(Dataset):
-    def __init__(self, json_file, tokenizer, size=512, t_drop_rate=0.05, i_drop_rate=0.05, ti_drop_rate=0.05, tfms=None,
-                 controller_tfms=None, use_t2i=False, pose_processor=None):
+    def __init__(self, json_file, tokenizer, size=512, t_drop_rate=0.05, i_drop_rate=0.05, ti_drop_rate=0.05, tfms=None, controller_tfms=None,
+                 use_t2i=False, pose_processor=None, use_gligen=False, max_boxes_per_data=8, embedding_len=768, token_len=77):
         super().__init__()
 
         self.tokenizer = tokenizer
@@ -42,6 +42,10 @@ class MyDataset(Dataset):
         if self.use_t2i is not None and pose_processor is not None:
             self.pose_processor = pose_processor
             self.preprocessing()
+        self.use_gligen = use_gligen
+        self.max_boxes_per_data = max_boxes_per_data
+        self.embedding_len = embedding_len
+        self.token_len = token_len
 
     def __getitem__(self, idx):
         item = self.data.iloc[idx]
@@ -58,10 +62,15 @@ class MyDataset(Dataset):
         with open("data/input/extended_sg/extended_sg_" + image_file.split(".")[0] + ".json") as f:
             ext_sg = json.load(f)
 
+        out = {}
+
         text = ext_sg["scene"]["single_action_caption"]
 
         # convert relationships triplets into the corresponding strings "subject relation object"
         triplets = ""
+        areas = []
+        boxes = []
+        objs = []
         hit_max_len = False
         for rel in ext_sg["relationships"]:
             subj_hit = False
@@ -70,18 +79,48 @@ class MyDataset(Dataset):
                 if obj["id"] == rel["source"] and not subj_hit:
                     subj_hit = True
                     subject = obj["type"]
+                    if self.use_gligen and obj["position"] not in boxes:
+                        # could lead to bugs if max triplets length (self.token_len tokens) is overtaken from the last triplet, thus discarding it but maintaning object boxes here appended  
+                        areas.append((obj["position"]["x1"]-obj["position"]["x0"])*(obj["position"]["y1"]-obj["position"]["y0"]))
+                        boxes.append(obj["position"])
+                        objs.append(obj["type"])
                 elif obj["id"] == rel["target"] and not obj_hit:
                     obj_hit = True
                     object = obj["type"]
+                    if self.use_gligen and obj["position"] not in boxes:
+                        # could lead to bugs if max triplets length (self.token_len tokens) is overtaken from the last triplet, thus discarding it but maintaning object boxes here appended
+                        areas.append((obj["position"]["x1"]-obj["position"]["x0"])*(obj["position"]["y1"]-obj["position"]["y0"]))
+                        boxes.append(obj["position"])
+                        objs.append(obj["type"])
                 if subj_hit and obj_hit:
                     next_triplets = triplets + f"{subject} {rel["type"]} {object}, "
-                    if next_triplets.count(" ") + next_triplets.count(",")-1 + next_triplets.count("-")*2 <= 77:
+                    if next_triplets.count(" ") + next_triplets.count(",")-1 + next_triplets.count("-")*2 <= self.token_len:
                         triplets = next_triplets
                     else:
                         hit_max_len = True
                     break
             if hit_max_len:
                 break
+
+        if self.use_gligen:
+            # Sort according to area and choose the largest N objects   
+            wanted_idxs = torch.tensor(areas).sort(descending=True)[1]
+            wanted_idxs = wanted_idxs[0:self.max_boxes_per_data]
+
+            boxes_tensor = torch.zeros(self.max_boxes_per_data, 4)
+            masks_tensor = torch.zeros(self.max_boxes_per_data)
+            text_embeddings = torch.zeros(self.max_boxes_per_data, self.embedding_len)
+
+            for i, idx in enumerate(wanted_idxs):
+                boxes_tensor[i] = boxes[idx]
+                masks_tensor[i] = 1
+                text_embeddings[i] = objs[idx]
+
+            out["gounding_input"] = {
+                "boxes": boxes_tensor,
+                "masks": masks_tensor,
+                "text_embeddings": text_embeddings
+            }
 
         # concatenate triplets to the caption
         triplets = triplets[:-2]
@@ -127,15 +166,15 @@ class MyDataset(Dataset):
             with torch.inference_mode():
                 shape = image.shape[-1]
                 res = get_datamaps(ext_sg, shape, shape, image_file)
+                
+        out["image"] = image
+        out["text_input_ids"] = text_input_ids
+        out["triplets_input_ids"] = triplets_input_ids
+        out["clip_image"] = clip_image
+        out["drop_image_embed"] = drop_image_embed
+        out["facer"] = res
 
-        return {
-            "image": image,
-            "text_input_ids": text_input_ids,
-            "triplets_input_ids": triplets_input_ids,
-            "clip_image": clip_image,
-            "drop_image_embed": drop_image_embed,
-            "facer": res
-        }
+        return out
 
     def __len__(self):
         return len(self.data)

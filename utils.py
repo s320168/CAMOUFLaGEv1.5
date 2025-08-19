@@ -253,6 +253,17 @@ def parse_args():
 
     parser.add_argument("--usev2", action="store_true", help="usev2")
 
+    parser.add_argument(
+        "--use_gligen", 
+        action="store_true", 
+        help=(
+            "Use GLIGEN's text grounding to manage entities based on label-bounding box correspondance"
+        )
+    )
+
+    if args.use_gligen and args.use_triplets is None:
+        parser.error("--use_gligen requires --use_triplets.")
+
     args = parser.parse_args()
     env_local_rank = int(os.environ.get("LOCAL_RANK", -1))
     if env_local_rank != -1 and env_local_rank != args.local_rank:
