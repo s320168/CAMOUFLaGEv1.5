@@ -106,13 +106,15 @@ def main():
 
     # set_device_dtype(accelerator.device, weight_dtype, vae, unet, text_encoder, image_encoder, ip_adapter)
 
-    vae, unet, text_encoder, image_encoder, ip_adapter = accelerator.prepare(
-        vae, unet, text_encoder, image_encoder, ip_adapter
+    vae, unet, text_encoder, ip_adapter = accelerator.prepare(
+        vae, unet, text_encoder, ip_adapter
     )
+    if args.use_farl:
+        image_encoder = accelerator.prepare(image_encoder) 
 
     # optimizer
     optimizer = torch.optim.AdamW(
-        itertools.chain(ip_adapter.image_proj.parameters(), ip_adapter.ip_adapter.parameters(),
+        itertools.chain(ip_adapter.image_proj.parameters() if args.use_farl else [], ip_adapter.ip_adapter.parameters(),
                         ip_adapter.t2i_adapter.parameters() if ip_adapter.t2i_adapter is not None else []),
         lr=args.learning_rate, weight_decay=args.weight_decay)
 

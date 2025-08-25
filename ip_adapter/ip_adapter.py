@@ -145,12 +145,15 @@ class IPAdapter:
         if not isinstance(negative_prompt, List):
             negative_prompt = [negative_prompt] * num_prompts
 
-        image_prompt_embeds, uncond_image_prompt_embeds = self.get_image_embeds(pil_image)
-        bs_embed, seq_len, _ = image_prompt_embeds.shape
-        image_prompt_embeds = image_prompt_embeds.repeat(1, num_samples, 1)
-        image_prompt_embeds = image_prompt_embeds.view(bs_embed * num_samples, seq_len, -1)
-        uncond_image_prompt_embeds = uncond_image_prompt_embeds.repeat(1, num_samples, 1)
-        uncond_image_prompt_embeds = uncond_image_prompt_embeds.view(bs_embed * num_samples, seq_len, -1)
+        if self.clip_image_processor is not None:
+            image_prompt_embeds, uncond_image_prompt_embeds = self.get_image_embeds(pil_image)
+            bs_embed, seq_len, _ = image_prompt_embeds.shape
+            image_prompt_embeds = image_prompt_embeds.repeat(1, num_samples, 1)
+            image_prompt_embeds = image_prompt_embeds.view(bs_embed * num_samples, seq_len, -1)
+            uncond_image_prompt_embeds = uncond_image_prompt_embeds.repeat(1, num_samples, 1)
+            uncond_image_prompt_embeds = uncond_image_prompt_embeds.view(bs_embed * num_samples, seq_len, -1)
+        else:
+            image_prompt_embeds, uncond_image_prompt_embeds = torch.Tensor([]).to(self.device), torch.Tensor([]).to(self.device)
 
         with torch.inference_mode():
             prompt_embeds = self.pipe._encode_prompt(

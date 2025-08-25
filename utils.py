@@ -348,6 +348,9 @@ class IPAdapterPlusFT(IPAdapterPlus):
                 self.image_proj_model.load_state_dict(state_dict["image_proj"])
             else:
                 self.image_proj_model = image_proj
+        else:
+            self.image_proj_model = None
+            self.clip_image_processor = None
 
         if ip_adapter is not None:
             self.set_ip_adapter()
