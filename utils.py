@@ -261,10 +261,19 @@ def parse_args():
         )
     )
 
+    parser.add_argument(
+        "--use_farl", 
+        action="store_true", 
+        help=(
+            "Use FaRL encoder to extract more image features from the input"
+        )
+    )
+
+    args = parser.parse_args()
+
     if args.use_gligen and args.use_triplets is None:
         parser.error("--use_gligen requires --use_triplets.")
 
-    args = parser.parse_args()
     env_local_rank = int(os.environ.get("LOCAL_RANK", -1))
     if env_local_rank != -1 and env_local_rank != args.local_rank:
         args.local_rank = env_local_rank
@@ -329,15 +338,16 @@ class IPAdapterPlusFT(IPAdapterPlus):
             self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(image_encoder).to(dtype=torch.float16)
         else:
             self.image_encoder = image_encoder
-        self.clip_image_processor = controller_transforms if controller_transforms is not None else CLIPImageProcessor()
-        # image proj model
-        if isinstance(image_proj, (str, Path)):
-            self.num_tokens = 16
-            state_dict = torch.load(image_proj, map_location="cpu")
-            self.image_proj_model = self.init_proj()
-            self.image_proj_model.load_state_dict(state_dict["image_proj"])
-        else:
-            self.image_proj_model = image_proj
+        if self.image_encoder is not None:
+            self.clip_image_processor = controller_transforms if controller_transforms is not None else CLIPImageProcessor()
+            # image proj model
+            if isinstance(image_proj, (str, Path)):
+                self.num_tokens = 16
+                state_dict = torch.load(image_proj, map_location="cpu")
+                self.image_proj_model = self.init_proj()
+                self.image_proj_model.load_state_dict(state_dict["image_proj"])
+            else:
+                self.image_proj_model = image_proj
 
         if ip_adapter is not None:
             self.set_ip_adapter()
@@ -360,14 +370,16 @@ class IPAdapterPlusFT(IPAdapterPlus):
 
     def to(self, device, dtype=None):
         if device is not None:
-            self.image_encoder.to(device)
-            self.image_proj_model.to(device)
+            if self.image_encoder is not None:
+                self.image_encoder.to(device)
+                self.image_proj_model.to(device)
             self.pipe.to(device)
             if self.t2i_adapter is not None:
                 self.t2i_adapter.to(device)
         if dtype is not None:
-            self.image_encoder.to(dtype=dtype)
-            self.image_proj_model.to(dtype=dtype)
+            if self.image_encoder is not None:
+                self.image_encoder.to(dtype=dtype)
+                self.image_proj_model.to(dtype=dtype)
             if self.t2i_adapter is not None:
                 self.t2i_adapter.to(dtype=dtype)
         return self

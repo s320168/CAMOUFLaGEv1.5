@@ -33,16 +33,18 @@ class IPAdapterTrainer(torch.nn.Module):
 
     def forward(self, unet, noisy_latents, timesteps, encoder_hidden_states_caption, encoder_hidden_states_triplets, image_embeds, image_embeds2=None,
                 unet_added_cond_kwargs=None, grounding_input=None):
-        ip_tokens = self.image_proj(image_embeds)
-        # check if relation triplets are being used
-        if encoder_hidden_states_triplets is not None:
-            # check if GLIGEN method is being used
-            if grounding_input is not None:
-                print("Grounding input TODO")
-            else:
+        if self.image_proj is not None:
+            ip_tokens = self.image_proj(image_embeds)
+            # check if relation triplets are being used
+            if encoder_hidden_states_triplets is not None:
                 encoder_hidden_states = torch.cat([encoder_hidden_states_caption, encoder_hidden_states_triplets, ip_tokens], dim=1)
+            else:
+                encoder_hidden_states = torch.cat([encoder_hidden_states_caption, ip_tokens], dim=1)
         else:
-            encoder_hidden_states = torch.cat([encoder_hidden_states_caption, ip_tokens], dim=1)
+            if encoder_hidden_states_triplets is not None:
+                encoder_hidden_states = torch.cat([encoder_hidden_states_caption, encoder_hidden_states_triplets], dim=1)
+            else:
+                encoder_hidden_states = encoder_hidden_states_caption
         down_block_additional_residuals = None
         if image_embeds2 is not None and self.t2i_adapter is not None:
             down_block_additional_residuals = self.t2i_adapter(image_embeds2)
@@ -53,7 +55,15 @@ class IPAdapterTrainer(torch.nn.Module):
         if unet_added_cond_kwargs is not None:
             kwargs["unet_added_cond_kwargs"] = unet_added_cond_kwargs
 
-        noise_pred = unet(noisy_latents, timesteps, encoder_hidden_states, **kwargs).sample
+        # check if GLIGEN's method is being used
+        if grounding_input is not None:
+            input = dict(x=noisy_latents, 
+                    timesteps=timesteps, 
+                    context=encoder_hidden_states, 
+                    grounding_input=grounding_input)
+            noise_pred = unet(input)
+        else:
+            noise_pred = unet(noisy_latents, timesteps, encoder_hidden_states, **kwargs).sample
         return noise_pred
 
     def load_from_checkpoint(self, ckpt_path: str):
@@ -134,31 +144,35 @@ class FacerAdapter(nn.Module):
 
 
 def init_ip_adapter(unet, image_encoder, num_tokens=16, t2i_adapter=None, XL=False, ckpt_path=None, usev2=False):
-    if XL:
-        num_tokens = 4
-        image_proj_model = Resampler(
-            dim=1280,
-            depth=4,
-            dim_head=64,
-            heads=20,
-            num_queries=num_tokens,
-            embedding_dim=image_encoder.config.hidden_size,
-            output_dim=unet.config.cross_attention_dim,
-            ff_mult=4
-        )
+    
+    if image_encoder is not None:
+        if XL:
+            num_tokens = 4
+            image_proj_model = Resampler(
+                dim=1280,
+                depth=4,
+                dim_head=64,
+                heads=20,
+                num_queries=num_tokens,
+                embedding_dim=image_encoder.config.hidden_size,
+                output_dim=unet.config.cross_attention_dim,
+                ff_mult=4
+            )
+        else:
+            num_tokens = 16 if num_tokens is None else 32
+            resampler_class = Resampler if not usev2 else ResamplerV2
+            image_proj_model = resampler_class(
+                dim=unet.config.cross_attention_dim,
+                depth=4,
+                dim_head=64,
+                heads=12 if not usev2 else 16,
+                num_queries=num_tokens,
+                embedding_dim=image_encoder.config.hidden_size,
+                output_dim=unet.config.cross_attention_dim,
+                ff_mult=4
+            )
     else:
-        num_tokens = 16 if num_tokens is None else 32
-        resampler_class = Resampler if not usev2 else ResamplerV2
-        image_proj_model = resampler_class(
-            dim=unet.config.cross_attention_dim,
-            depth=4,
-            dim_head=64,
-            heads=12 if not usev2 else 16,
-            num_queries=num_tokens,
-            embedding_dim=image_encoder.config.hidden_size,
-            output_dim=unet.config.cross_attention_dim,
-            ff_mult=4
-        )
+        image_proj_model = None
     # init adapter modules
     attn_procs = {}
     unet_sd = unet.state_dict()

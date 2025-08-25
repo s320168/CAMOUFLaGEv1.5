@@ -33,7 +33,6 @@ if is_wandb_available():
 
 import torchvision.transforms.functional as TF
 from torchvision import transforms
-from ldm.utils import instantiate_from_config
 
 with open("data/wandb.txt", "r") as f:
     k = f.read()
@@ -64,38 +63,14 @@ def main():
     tokenizer = CLIPTokenizer.from_pretrained(args.pretrained_model_name_or_path, subfolder="tokenizer")
     text_encoder = CLIPTextModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="text_encoder")
     if args.use_gligen:
-        # define custom UNet when using GLIGEN method and corresponding grounding_tokenizer
-        unet = instantiate_from_config({
-            "target": "ldm.modules.diffusionmodules.openaimodel.UNetModel", 
-            "params": {
-                "image_size": 64,
-                "in_channels": 4,
-                "out_channels": 4,
-                "model_channels": 320,
-                "attention_resolutions": [ 4, 2, 1 ],
-                "num_res_blocks": 2,
-                "channel_mult": [ 1, 2, 4, 4 ],
-                "num_heads": 8,
-                "transformer_depth": 1,
-                "context_dim": 768,
-                "fuser_type": "gatedSA",
-                "use_checkpoint": True,
-
-                "grounding_tokenizer": {
-                    "target": "ldm.modules.diffusionmodules.text_grounding_net.PositionNet",
-                    "params": {
-                        "in_dim": 768,  
-                        "out_dim": 768
-                    }
-                }                            
-            }
-        })
-        grounding_tokenizer_input = instantiate_from_config({"target": "grounding_input.text_grounding_tokinzer_input.GroundingNetInput"})
+        # define custom UNetConditionedModel
+        print("GLIGEN not yet implemented")
     else:
         unet = UNet2DConditionModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="unet")
         unet.set_attn_processor(AttnProcessor())
         grounding_tokenizer_input = None
-    image_encoder = CLIPVisionModelWithProjection.from_pretrained(args.image_encoder_path)
+    if args.use_farl:
+        image_encoder = CLIPVisionModelWithProjection.from_pretrained(args.image_encoder_path)
     # here would be added FRESCO and the selected SGG model loadings
 
     vae_path = (
@@ -109,11 +84,13 @@ def main():
         revision=args.revision,
     )
     # freeze parameters of models to save more memory
-    set_requires_grad(False, vae, unet, text_encoder, image_encoder)
+    set_requires_grad(False, vae, unet, text_encoder)
+    if args.use_farl:
+        set_requires_grad(False, image_encoder)
 
     # ip-adapter-plus
-    ip_adapter = init_ip_adapter(num_tokens=16, unet=unet, image_encoder=image_encoder, usev2=args.usev2,
-                                 t2i_adapter=FacerAdapter() if args.use_t2i else None)
+    ip_adapter = init_ip_adapter(num_tokens=16, unet=unet, image_encoder=image_encoder if args.use_farl else None, 
+                                 usev2=args.usev2, t2i_adapter=FacerAdapter() if args.use_t2i else None)
 
     # define OpenPose model and transfer it on the device used
     if args.use_t2i is not None:
@@ -212,16 +189,17 @@ def main():
                 # (this is the forward diffusion process)
                 noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
 
-                clip_images = []
-                for clip_image, drop_image_embed in zip(batch["clip_images"], batch["drop_image_embeds"]):
-                    if drop_image_embed == 1:
-                        clip_images.append(torch.zeros_like(clip_image))
-                    else:
-                        clip_images.append(clip_image)
-                clip_images = torch.stack(clip_images, dim=0)
-                with torch.no_grad():
-                    image_embeds = image_encoder(clip_images,
-                                                 output_hidden_states=True).hidden_states[-2]
+                if args.use_farl:
+                    clip_images = []
+                    for clip_image, drop_image_embed in zip(batch["clip_images"], batch["drop_image_embeds"]):
+                        if drop_image_embed == 1:
+                            clip_images.append(torch.zeros_like(clip_image))
+                        else:
+                            clip_images.append(clip_image)
+                    clip_images = torch.stack(clip_images, dim=0)
+                    with torch.no_grad():
+                        image_embeds = image_encoder(clip_images,
+                                                    output_hidden_states=True).hidden_states[-2]
 
                 with torch.no_grad():
                     encoder_hidden_states_caption = text_encoder(batch["text_input_ids"])[0]
@@ -238,8 +216,9 @@ def main():
                 else:
                     image_embeds2 = None
 
-                noise_pred = ip_adapter(unet, grounding_tokenizer_input, noisy_latents, timesteps, encoder_hidden_states_caption, 
-                                        encoder_hidden_states_triplets, image_embeds, image_embeds2=image_embeds2, grounding_input=grounding_input)
+                noise_pred = ip_adapter(unet, noisy_latents, timesteps, encoder_hidden_states_caption, 
+                                        encoder_hidden_states_triplets, image_embeds if args.use_farl else None, 
+                                        image_embeds2=image_embeds2, grounding_input=grounding_input)
 
                 loss = F.mse_loss(noise_pred.float(), noise.float(), reduction="mean")
 
@@ -269,13 +248,12 @@ def main():
                                 unet,
                                 tfms,
                                 controller_transforms,
-                                image_encoder,
+                                image_encoder if args.use_farl else None,
                                 ip_adapter,
                                 args,
                                 accelerator,
                                 accelerator.mixed_precision,
-                                global_step,
-                                openpose_processor
+                                global_step
                             )
 
                 logs = {"loss": loss.detach().item()}  # , "lr": lr_scheduler.get_last_lr()[0]}
@@ -286,7 +264,7 @@ def main():
 
 
 def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transforms, image_encoder, ipAdapterTrainer,
-                   args, accelerator, weight_dtype, step, pose_processor):
+                   args, accelerator, weight_dtype, step):
     logger.info("Running validation... ")
 
     # controlnet = accelerator.unwrap_model(cunet)
