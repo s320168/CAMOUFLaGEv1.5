@@ -33,6 +33,7 @@ if is_wandb_available():
 
 import torchvision.transforms.functional as TF
 from torchvision import transforms
+from diffusers import ControlNetModel
 
 with open("data/wandb.txt", "r") as f:
     k = f.read()
@@ -89,8 +90,16 @@ def main():
         set_requires_grad(False, image_encoder)
 
     # ip-adapter-plus
+    if args.use_t2i == "facer":
+        t2i_adapter = FacerAdapter()
+    elif args.use_t2i == "controlnet":
+        t2i_adapter = ControlNetModel()
+    else:
+        logger.info("No T2I-Adapter has been selected")
+        print("No T2I-Adapter has been selected")
+        t2i_adapter = None
     ip_adapter = init_ip_adapter(num_tokens=16, unet=unet, image_encoder=image_encoder if args.use_farl else None, 
-                                 usev2=args.usev2, t2i_adapter=FacerAdapter() if args.use_t2i else None)
+                                 usev2=args.usev2, t2i_adapter=t2i_adapter)
 
     # define OpenPose model and transfer it on the device used
     if args.use_t2i is not None:

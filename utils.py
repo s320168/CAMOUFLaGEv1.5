@@ -234,9 +234,10 @@ def parse_args():
 
     parser.add_argument(
         "--use_t2i",
-        action="store_true",
+        type=str,
+        default=None,
         help=(
-            "Whether or not to use t2i adapter"
+            "Which model to use as T2I-Adapter (options: 'facer' and 'controlnet')"
         ),
     )
 
