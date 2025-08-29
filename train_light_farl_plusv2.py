@@ -323,10 +323,10 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
     for validation_prompt, validation_image in zip(validation_prompts, validation_images):
         image_file = validation_image
         validation_image = Image.open("data/input/images/" + image_file).convert("RGB")
-        crop = transforms.Compose(
+        crop = transforms.Compose([
             transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
             transforms.CenterCrop(512),
-        )
+        ])
         validation_image = crop(validation_image)
         validation_prompt = validation_prompt.split(".")
         if args.use_triplets and len(validation_prompt[1]) > 0:
