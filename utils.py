@@ -512,85 +512,104 @@ class catchtime(object):
 def get_head_pose_datamap(var: dict, pos: dict, orig_h: int, orig_w: int, h: int, w: int) -> torch.Tensor:
     # initialize output matrix
     res = torch.zeros((h, w))
-    # corner points of the head bounding box, adjusted to the new image size
-    x0 = int(pos["x0"]/orig_w*w)
-    y0 = int(pos["y0"]/orig_h*h)
-    x1 = int(pos["x1"]/orig_w*w)
-    y1 = int(pos["y1"]/orig_h*h)
-    # compute the center of the bounding box
-    center_y = (y1 + y0) // 2
-    center_x = (x1 + x0) // 2
-    # bring data from (-180, +180) to (0, +360) domain and discard their decimal part
-    yaw = int(var["yaw"] + 180)
-    pitch = int(var["pitch"] + 180)
-    roll = int(var["roll"] + 180)
-    # pack yaw, pitch and roll data into a single value where in the fomat rrrpppyyy in the center of the face's bounding box and bring it into [0, 1) range
-    res[center_y, center_x] = (yaw + 1000 * pitch + 1000000 * roll) / 360360360
+    if "eye_pos" in var and "x0" in pos and "y0" in pos and "x1" in pos and "y1" in pos and "yaw" in var and "pitch" in var and "roll" in var:
+        # corner points of the head bounding box, adjusted to the new image size
+        x0 = int(pos["x0"]/orig_w*w)
+        y0 = int(pos["y0"]/orig_h*h)
+        x1 = int(pos["x1"]/orig_w*w)
+        y1 = int(pos["y1"]/orig_h*h)
+        # compute the center of the bounding box
+        center_y = (y1 + y0) // 2
+        center_x = (x1 + x0) // 2
+        # bring data from (-180, +180) to (0, +360) domain and discard their decimal part
+        yaw = int(var["yaw"] + 180)
+        pitch = int(var["pitch"] + 180)
+        roll = int(var["roll"] + 180)
+        # pack yaw, pitch and roll data into a single value where in the fomat rrrpppyyy in the center of the face's bounding box and bring it into [0, 1) range
+        res[center_y, center_x] = (yaw + 1000 * pitch + 1000000 * roll) / 360360360
     return res
 
 def get_gaze_dir_datamap(var: dict, orig_h: int, orig_w: int, h: int, w: int) -> torch.Tensor:
     # initialize output matrix
     res = torch.zeros((h, w))
-    # corner points of the head bounding box, adjusted to the new image size
-    x1 = int(var["eye_pos"]["x1"]/orig_w*w)
-    y1 = int(var["eye_pos"]["y1"]/orig_h*h)
-    x2 = int(var["eye_pos"]["x2"]/orig_w*w)
-    y2 = int(var["eye_pos"]["y2"]/orig_h*h)
-    # bring data from (-180, +180) to (0, +360) domain and multiply it to make it an integer number
-    yaw = (var["yaw"] + 180) * 100
-    pitch = (var["pitch"] + 180) * 100
-    # pack yaw and pitch data into a single value where in the fomat pppppyyyyy and bring it into [0, 1) range
-    res[y1, x1] = res[y2, x2] = (yaw + 100000 * pitch) / 3600036000
+    if "eye_pos" in var and "x1" in var["eye_pos"] and "y1" in var["eye_pos"] and "x2" in var["eye_pos"] and "y2" in var["eye_pos"] and "yaw" in var and "pitch" in var:
+        # corner points of the head bounding box, adjusted to the new image size
+        x1 = int(var["eye_pos"]["x1"]/orig_w*w)
+        y1 = int(var["eye_pos"]["y1"]/orig_h*h)
+        x2 = int(var["eye_pos"]["x2"]/orig_w*w)
+        y2 = int(var["eye_pos"]["y2"]/orig_h*h)
+        # bring data from (-180, +180) to (0, +360) domain and multiply it to make it an integer number
+        yaw = (var["yaw"] + 180) * 100
+        pitch = (var["pitch"] + 180) * 100
+        # pack yaw and pitch data into a single value where in the fomat pppppyyyyy and bring it into [0, 1) range
+        res[y1, x1] = res[y2, x2] = (yaw + 100000 * pitch) / 3600036000
     return res
 
 def get_palette_datamap(image_file: str) -> torch.Tensor:
+    file_path = "data/input/palette/" + image_file.split(".")[0] + ".png"
     # read the image's corresponding color palette
-    img = cv2.imread("data/input/palette/" + image_file.split(".")[0] + ".png")
-    return torch.from_numpy(img/255).permute(2, 0, 1)
+    if os.path.isfile(file_path):
+        img = cv2.imread(file_path)
+        return torch.from_numpy(img/255).permute(2, 0, 1)
+    else:
+        print(f"Error: impossible to open file {file_path}")
+        return torch.zeros((3, 64, 64))
 
 def get_body_datamap(image_file: str) -> torch.Tensor:
+    file_path = "data/input/openpose/" + image_file.split(".")[0] + ".png"
     # read the image's corresponding Openpose output
-    img = cv2.imread("data/input/openpose/" + image_file.split(".")[0] + ".png")
-    # get the greyscale version of the image
-    grayImage = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    return torch.from_numpy(grayImage)
+    if os.path.isfile(file_path):
+        img = cv2.imread(file_path)
+        # get the greyscale version of the image
+        grayImage = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        return torch.from_numpy(grayImage)
+    else:
+        print(f"Error: impossible to open file {file_path}")
+        return torch.zeros((64, 64))
 
 def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Tensor:
     # compute the data maps shape as a 1/8 downsample of the cropped image
     ds_h = h // 8
     ds_w = w // 8
     # keep track of the original dimensions of the image so to rescale positional data later
-    orig_h = extended_sg["scene"]["dimensions"]["height"]
-    orig_w = extended_sg["scene"]["dimensions"]["width"]
+    if "scene" in extended_sg and "dimensions" in extended_sg["scene"] and "height" in extended_sg["scene"]["dimensions"] and "width" in extended_sg["scene"]["dimensions"]:
+        orig_h = extended_sg["scene"]["dimensions"]["height"]
+        orig_w = extended_sg["scene"]["dimensions"]["width"]
     # initialize the output
     features = torch.zeros((1, 64, ds_h, ds_w))
     # cycle through every object
-    for o in extended_sg["objects"]:
-        # keep the object's bounding box
-        pos = o["position"]
-        # if the object isn't a "human face" note only its depth data brought in [0, 1) range
-        if o["type"] != "human face":
-            features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"] / 255
-            continue
-        # for "human face" objects keep separately head pose and gaze direction data
-        head = o["attributes"].pop("head_pose")
-        gaze = o["attributes"].pop("gaze_direction")
-        # flatten the other attributes into a single layer dictionary
-        obj = flatdict.FlatDict(o["attributes"])
-        attr_keys = obj.keys()
-        # cycle through every attribute to insert it in the corresponding data map area delimited by the face's bounding box
-        for i, k in enumerate(attr_keys):
-            # face_attributes_scores and emotion_scores are already in [0, 1) range
-            if "face_attributes_scores." in k or "emotion_scores." in k:
-                features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k]
-            # every other remaining attribute needs to be brought in [0, 1) range
-            else:
-                features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k] / 100
-        # add depth data (brought ini [0, 1) range) to its map highlighted by the face's bounding box
-        features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"] / 255
-        # add head pose and gaze direction data to the corresponding data map areas
-        features[0, 58] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
-        features[0, 59] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
+    if "objects" in extended_sg:
+        for o in extended_sg["objects"]:
+            if "position" in o and "x0" in o["position"] and "y0" in o["position"] and "x1" in o["position"] and "y1" in o["position"]:
+                # keep the object's bounding box
+                pos = o["position"]
+                # if the object isn't a "human face" note only its depth data brought in [0, 1) range
+                if "type" in o:
+                    if o["type"] != "human face":
+                        features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"] / 255
+                        continue
+                # flatten the other attributes into a single layer dictionary
+                if "attributes" in o:
+                    obj = flatdict.FlatDict(o["attributes"])
+                    attr_keys = obj.keys()
+                    # cycle through every attribute to insert it in the corresponding data map area delimited by the face's bounding box
+                    for i, k in enumerate(attr_keys):
+                        # face_attributes_scores and emotion_scores are already in [0, 1) range
+                        if "face_attributes_scores." in k or "emotion_scores." in k:
+                            features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k]
+                        # every other remaining attribute needs to be brought in [0, 1) range
+                        else:
+                            features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k] / 100
+                    # add depth data (brought ini [0, 1) range) to its map highlighted by the face's bounding box
+                    features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"] / 255
+                    # add head pose and gaze direction data to the corresponding data map areas
+                    # for "human face" objects keep separately head pose and gaze direction data
+                    if "head_pose" in o["attributes"]:
+                        head = o["attributes"].pop("head_pose")
+                        features[0, 58] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
+                    if "gaze_direction" in o["attributes"]:
+                        gaze = o["attributes"].pop("gaze_direction")
+                        features[0, 59] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
     # add color palette datamap
     features[0, 60:63] = get_palette_datamap(image_file)
     # add body pose datamap

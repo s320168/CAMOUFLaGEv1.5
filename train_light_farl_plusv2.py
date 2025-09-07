@@ -348,10 +348,10 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
             # using crop_image instead of validation_image in the arguments for the reason above
             tmp = ip_model.generate(pil_image=validation_image, num_samples=args.num_validation_images,
                                     num_inference_steps=30, prompt=validation_prompt[0], prompt_triplets=validation_prompt[1], 
-                                    seed=args.seed, negative_prompt=token, image=validation_image, strength=0.6,
+                                    seed=args.seed, negative_prompt=token, image=validation_image, strength=1.0,
                                     scale=0.8 if len(validation_prompt) > 1 else 1.0,
                                     down_block_additional_residuals=None if res is None else ipAdapterTrainer.t2i_adapter(
-                                        res.to(accelerator.device)))
+                                        res.to(accelerator.device)), guidance_scale=1.0)
 
         images.extend(tmp)
 
