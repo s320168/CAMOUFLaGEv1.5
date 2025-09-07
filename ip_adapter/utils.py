@@ -47,7 +47,10 @@ class IPAdapterTrainer(torch.nn.Module):
                 encoder_hidden_states = encoder_hidden_states_caption
         down_block_additional_residuals = None
         if image_embeds2 is not None and self.t2i_adapter is not None:
-            down_block_additional_residuals = self.t2i_adapter(image_embeds2)
+            if isinstance(self.t2i_adapter, FacerAdapter):
+                down_block_additional_residuals = self.t2i_adapter(image_embeds2)
+            else:
+                down_block_additional_residuals = self.t2i_adapter(noisy_latents, timesteps, encoder_hidden_states, image_embeds2)
         # Predict the noise residual and compute loss
         kwargs = {
             "down_block_additional_residuals": down_block_additional_residuals

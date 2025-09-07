@@ -31,8 +31,8 @@ else:
 if is_wandb_available():
     import wandb
 
-import torchvision.transforms.functional as TF
 from torchvision import transforms
+from diffusers import ControlNetModel
 
 with open("data/wandb.txt", "r") as f:
     k = f.read()
@@ -89,8 +89,16 @@ def main():
         set_requires_grad(False, image_encoder)
 
     # ip-adapter-plus
+    if args.use_t2i == "facer":
+        t2i_adapter = FacerAdapter()
+    elif args.use_t2i == "controlnet":
+        t2i_adapter = ControlNetModel(conditioning_channels=64)
+    else:
+        logger.info("No T2I-Adapter has been selected")
+        print("No T2I-Adapter has been selected")
+        t2i_adapter = None
     ip_adapter = init_ip_adapter(num_tokens=16, unet=unet, image_encoder=image_encoder if args.use_farl else None, 
-                                 usev2=args.usev2, t2i_adapter=FacerAdapter() if args.use_t2i else None)
+                                 usev2=args.usev2, t2i_adapter=t2i_adapter)
 
     # define OpenPose model and transfer it on the device used
     if args.use_t2i is not None:
@@ -312,17 +320,14 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
 
     image_logs = []
 
-    tfms = transforms.Compose([
-        transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
-        transforms.CenterCrop(512),
-        transforms.ToTensor()
-    ])
-
     for validation_prompt, validation_image in zip(validation_prompts, validation_images):
         image_file = validation_image
-        raw_image = Image.open("data/input/images/" + image_file)
-        image = tfms(raw_image.convert("RGB"))
-        validation_image = TF.to_pil_image(image, mode="RGB")
+        validation_image = Image.open("data/input/images/" + image_file).convert("RGB")
+        crop = transforms.Compose([
+            transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
+            transforms.CenterCrop(512),
+        ])
+        validation_image = crop(validation_image)
         validation_prompt = validation_prompt.split(".")
         if args.use_triplets and len(validation_prompt[1]) > 0:
             validation_prompt[1] = validation_prompt[1][1:]
@@ -345,7 +350,6 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
                         ext_sg = json.load(f)
                     res = get_datamaps(ext_sg, shape, shape, image_file)
 
-            # using crop_image instead of validation_image in the arguments for the reason above
             tmp = ip_model.generate(pil_image=validation_image, num_samples=args.num_validation_images,
                                     num_inference_steps=30, prompt=validation_prompt[0], prompt_triplets=validation_prompt[1], 
                                     seed=args.seed, negative_prompt=token, image=validation_image, strength=1.0,
