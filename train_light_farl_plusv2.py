@@ -247,7 +247,7 @@ def main():
                     if accelerator.is_main_process:
                         if global_step % args.checkpointing_steps == 0:
                             save_path = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
-                            accelerator.save_state(save_path)
+                            accelerator.save_state(save_path, safe_serialization=False, exclude_frozen_parameters=True)
                             logger.info(f"Saved state to {save_path}")
 
                         if args.validation_prompt is not None and global_step % args.validation_steps == 0:
@@ -322,7 +322,7 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
 
     for validation_prompt, validation_image in zip(validation_prompts, validation_images):
         image_file = validation_image
-        validation_image = Image.open("data/input/images/" + image_file).convert("RGB")
+        validation_image = Image.open("dataset/FFHQ/FFHQ-itw-512/" + image_file).convert("RGB")
         crop = transforms.Compose([
             transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
             transforms.CenterCrop(512),
@@ -343,8 +343,6 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
                     raw_image = ((tfms(validation_image) / 2 + 0.5) * 255).unsqueeze(0).to(accelerator.device)
                     shape = raw_image.shape[-1]
                     latent_shape = shape // 8
-                    # TODO: pass image to FRESCO and to the SGG model
-
                     # load the extended scene graph file in a dictionary
                     with open("data/input/extended_sg/extended_sg_" + image_file.split(".")[0] + ".json") as f:
                         ext_sg = json.load(f)

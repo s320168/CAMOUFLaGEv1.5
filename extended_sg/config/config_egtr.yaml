@@ -16,15 +16,15 @@ threshold: # task specific thresholds
 
 filesystem: # paths containing the used data
   # directory containing identikits produced by FRESCO
-  input: ../data/input/identikits/
+  input: ../../dataset/FFHQ/annotations/identikits/test/
   # directory containing panoptic segmentation of the images
-  panoptic: ../data/input/seg_coco/
+  panoptic: ../../dataset/FFHQ/annotations/seg_coco/test/
   # directory containing depth estimation of the images
-  depth: ../data/input/depth/
+  depth: ../../dataset/FFHQ/annotations/depth/test/
   # directory containing scene graphs of the images
-  scene_graph: ../data/input/egtr_sg/
+  scene_graph: ../../dataset/FFHQ/sg/test/
   # directory containing the extended scene graphs
-  output: ../data/input/extended_sg/
+  output: ../../dataset/FFHQ/extended_sg/test/
 
 filetype: # file type of data used
   # input identikit file type

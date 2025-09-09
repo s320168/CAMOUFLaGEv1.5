@@ -1,4 +1,5 @@
 import os
+os.environ['HF_HOME'] = 'E:/Tesi_Silvano/weights/'
 
 import click
 import numpy as np
@@ -9,7 +10,7 @@ from torchvision.transforms.functional import to_tensor
 from face_swap import face_swap
 from ip_adapter.utils import is_torch2_available
 from pipelines import StableDiffusionImg2ImgPipelineRes
-from utils import IPAdapterPlusFT, maybe_int, get_concat_h, images_to_grid, AttributeDict
+from utils import IPAdapterPlusFT, maybe_int, get_concat_h, images_to_grid, AttributeDict, get_datamaps
 
 if is_torch2_available():
     from diffusers.models.attention_processor import AttnProcessor2_0 as AttnProcessor
@@ -25,8 +26,9 @@ from tqdm import tqdm
 from nearest_face import AnnoyWrapper
 
 from PIL import Image
-from insightface.app import FaceAnalysis
+#from insightface.app import FaceAnalysis
 from wakepy import keep
+import json
 
 
 def write_crop(image, crop_path, face, embed_path):
@@ -71,8 +73,8 @@ def main(crop_path, method, file_index, batch_size, base_model_path, vae_model_p
     ip_ckpt = Path(ip_ckpt)
     in_folder = Path(in_folder)
 
-    app = FaceAnalysis(name='buffalo_l')
-    app.prepare(ctx_id=0, det_size=(512, 512))
+    #app = FaceAnalysis(name='buffalo_l')
+    #app.prepare(ctx_id=0, det_size=(512, 512))
 
     output_folder.mkdir(parents=True, exist_ok=True)
 
@@ -87,18 +89,18 @@ def main(crop_path, method, file_index, batch_size, base_model_path, vae_model_p
     image_list = [p for p in original_path.glob('*.*') if p.suffix.lower() in [".jpg", ".png", ".jpeg"]]
     assert len(image_list) > 0, "No images found"
 
-    for path in tqdm(image_list, desc="Checking cropped images..."):
-        p_crop = crop_path / f"{path.stem}.png"
-        p_emb = embeddings_path / f"{path.stem}.npy"
-        if p_crop.exists() and p_emb.exists():
-            continue
-        image = np.array(Image.open(path).convert("RGB"))
-        face = app.get(image, 1)
-        if len(face) == 0:
-            tqdm.write(f"Face not found in {path}")
-            path.unlink()
-        else:
-            write_crop(image, p_crop, face[0], p_emb)
+    # for path in tqdm(image_list, desc="Checking cropped images..."):
+    #     p_crop = crop_path / f"{path.stem}.png"
+    #     p_emb = embeddings_path / f"{path.stem}.npy"
+    #     if p_crop.exists() and p_emb.exists():
+    #         continue
+    #     image = np.array(Image.open(path).convert("RGB"))
+    #     face = app.get(image, 1)
+    #     if len(face) == 0:
+    #         tqdm.write(f"Face not found in {path}")
+    #         path.unlink()
+    #     else:
+    #         write_crop(image, p_crop, face[0], p_emb)
 
     t = AnnoyWrapper(method, device)
 
@@ -156,70 +158,60 @@ def main(crop_path, method, file_index, batch_size, base_model_path, vae_model_p
             continue
         image = Image.open(path).convert("RGB")
         image = tfms(image)
-        faces = app.get(np.array(image))
-        faces = sorted(faces, key=lambda x: (x.bbox[2] - x.bbox[0]) * (x.bbox[3] - x.bbox[1]), reverse=True)
+        # faces = app.get(np.array(image))
+        # faces = sorted(faces, key=lambda x: (x.bbox[2] - x.bbox[0]) * (x.bbox[3] - x.bbox[1]), reverse=True)
         new_image = np.array(image.copy())
         face_used = []
         # blur_image = image.copy()
-        if len(faces) == 0:
+        # if len(faces) == 0:
+        #     res = None
+        # else:
+        #     for i, face in enumerate(faces):
+        #         rect = face.bbox.tolist()
+        #         if (rect[2] - rect[0]) * (rect[3] - rect[1]) < 64 * 64:
+        #             continue
+        #         face_im = image.crop(rect)
+        #         new_face = t.get_nns_by_vector(face_im, n=20, search_k=-1, include_distances=True)
+        #         threshold = min(max(new_face[0]), min_threshold)
+        #         new_face = list(zip(*new_face))
+        #         new_faceb = [x for x in new_face if x[1] > threshold]
+        #         new_face.reverse()
+        #         new_face = (new_faceb if len(new_faceb) != 0 else new_face)[0][0]
+
+        #         path = image_list[new_face]
+        #         new_face = AttributeDict(
+        #             np.load(path.parent.with_name(f"{path.parent.name}_embeddings") / f"{path.stem}.npy",
+        #                     allow_pickle=True).item())
+        #         fim = np.array(Image.open(path).convert("RGB"))
+        #         face_used.append(path)
+
+        #         new_image = face_swap(new_image, face, fim, new_face, no_seamless_copy)
+
+        new_image = Image.fromarray(new_image)
+
+        if ip_model.t2i_adapter is None:
             res = None
         else:
-            for i, face in enumerate(faces):
-                rect = face.bbox.tolist()
-                if (rect[2] - rect[0]) * (rect[3] - rect[1]) < 64 * 64:
-                    continue
-                face_im = image.crop(rect)
-                new_face = t.get_nns_by_vector(face_im, n=20, search_k=-1, include_distances=True)
-                threshold = min(max(new_face[0]), min_threshold)
-                new_face = list(zip(*new_face))
-                new_faceb = [x for x in new_face if x[1] > threshold]
-                new_face.reverse()
-                new_face = (new_faceb if len(new_faceb) != 0 else new_face)[0][0]
-
-                path = image_list[new_face]
-                new_face = AttributeDict(
-                    np.load(path.parent.with_name(f"{path.parent.name}_embeddings") / f"{path.stem}.npy",
-                            allow_pickle=True).item())
-                fim = np.array(Image.open(path).convert("RGB"))
-                face_used.append(path)
-
-                new_image = face_swap(new_image, face, fim, new_face, no_seamless_copy)
-
-            new_image = Image.fromarray(new_image)
-
-            if ip_model.t2i_adapter is None:
-                res = None
-            else:
-                raw_image = to_tensor(new_image).unsqueeze(0).to(device) * 255
-                h, w = raw_image.shape[-2:]
-                latent_shape_h, latent_shape_w = h // 8, w // 8
-                latent_max = max(latent_shape_h, latent_shape_w)
-                shape_max = max(h, w)
-                res = torch.zeros((1, 41, latent_shape_h, latent_shape_w))
-                ids = [0 for _ in range(len(faces))]
-                rects = torch.stack([torch.tensor(f["bbox"]) for f in faces])
-                points = torch.stack([torch.tensor(f["kps"]) for f in faces])
-                attrs = faces["attrs"]
-                # torch.save(attrs, out / "attrs.pt")
-                for n, i in enumerate(ids):
-                    p = torch.nn.functional.hardtanh(points[n] * (latent_max - 1) // shape_max, 0,
-                                                     latent_max - 1).to(int)
-                    r = torch.nn.functional.hardtanh(rects[n] * latent_max // shape_max, 0, latent_max).to(int)
-                    res[i, -1, p[:, 1], p[:, 0]] = 1
-                    res[i, :40, max(r[1], 0):min(r[3], latent_shape_h), max(r[0], 0):min(r[2], latent_shape_w)] = \
-                        attrs[
-                            n].repeat(
-                            min(r[3], latent_shape_h) - max(r[1], 0), min(r[2], latent_shape_w) - max(r[0], 0),
-                            1).permute(
-                            2, 0, 1)
+            raw_image = to_tensor(new_image).unsqueeze(0).to(device) * 255
+            h, w = raw_image.shape[-2:]
+            latent_shape_h, latent_shape_w = h // 8, w // 8
+            latent_max = max(latent_shape_h, latent_shape_w)
+            shape_max = max(h, w)
+            # torch.save(attrs, out / "attrs.pt")
+            with open("dataset/FFHQ/extended_sg/" + path.split(".")[0] + ".json") as f:
+                ext_sg = json.load(f)
+            res = get_datamaps(ext_sg, shape_max, shape_max, path)
 
         if isinstance(new_image, np.ndarray):
             new_image = Image.fromarray(new_image)
+        prompt = "A woman and a young girl posing for a picture together with other people in the background at a park. cup in front of person, cup to the right of person, cup below person, cup below-left of footwear, sneakers, cup below person, person next to person, person in front of person, person in front of footwear, sneakers, person in front of person, person in front of person, person below-left of footwear, sneakers" if path.split(".")[0] == "1" else "A woman wearing a headset in front of a blue screen with a bright light in the middle of it. person has human face, person next to microphone, person next to microphone, person next to human eye, person next to human nose, microphone next to microphone, microphone below-left of human eye, microphone below-left of human nose, microphone below-left of human eye, microphone below-left of human nose, human eye above-left of human nose"
+        prompt_caption = prompt.split(".")[0] + "."
+        prompt_triplets = prompt.split(".")[1] + "."
         images = ip_model.generate(pil_image=new_image, num_samples=1, num_inference_steps=num_inference_steps,
                                    seed=seed,
                                    guidance_scale=3,
-                                   prompt="", negative_prompt="easyneg", image=Image.blend(new_image, image, alpha),
-                                   strength=strength, scale=1,
+                                   prompt_caption=prompt_caption, prompt_triplets=prompt_triplets, negative_prompt="easyneg", 
+                                   image=Image.blend(new_image, image, alpha), strength=strength, scale=1,
                                    down_block_additional_residuals=None if res is None else ip_model.t2i_adapter(
                                        res.to(device, torch.float16)))
 

@@ -547,7 +547,7 @@ def get_gaze_dir_datamap(var: dict, orig_h: int, orig_w: int, h: int, w: int) ->
     return res
 
 def get_palette_datamap(image_file: str) -> torch.Tensor:
-    file_path = "data/input/palette/" + image_file.split(".")[0] + ".png"
+    file_path = "../dataset/FFHQ/palette/" + image_file.split(".")[0] + ".png"
     # read the image's corresponding color palette
     if os.path.isfile(file_path):
         img = cv2.imread(file_path)
@@ -557,7 +557,7 @@ def get_palette_datamap(image_file: str) -> torch.Tensor:
         return torch.zeros((3, 64, 64))
 
 def get_body_datamap(image_file: str) -> torch.Tensor:
-    file_path = "data/input/openpose/" + image_file.split(".")[0] + ".png"
+    file_path = "../dataset/FFHQ/openpose/" + image_file.split(".")[0] + ".png"
     # read the image's corresponding Openpose output
     if os.path.isfile(file_path):
         img = cv2.imread(file_path)
@@ -591,6 +591,14 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Te
                         continue
                 # flatten the other attributes into a single layer dictionary
                 if "attributes" in o:
+                    # add head pose and gaze direction data to the corresponding data map areas
+                    # for "human face" objects keep separately head pose and gaze direction data
+                    if "head_pose" in o["attributes"]:
+                        head = o["attributes"].pop("head_pose")
+                        features[0, 58] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
+                    if "gaze_direction" in o["attributes"]:
+                        gaze = o["attributes"].pop("gaze_direction")
+                        features[0, 59] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
                     obj = flatdict.FlatDict(o["attributes"])
                     attr_keys = obj.keys()
                     # cycle through every attribute to insert it in the corresponding data map area delimited by the face's bounding box
@@ -603,14 +611,6 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Te
                             features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k] / 100
                     # add depth data (brought ini [0, 1) range) to its map highlighted by the face's bounding box
                     features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"] / 255
-                    # add head pose and gaze direction data to the corresponding data map areas
-                    # for "human face" objects keep separately head pose and gaze direction data
-                    if "head_pose" in o["attributes"]:
-                        head = o["attributes"].pop("head_pose")
-                        features[0, 58] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
-                    if "gaze_direction" in o["attributes"]:
-                        gaze = o["attributes"].pop("gaze_direction")
-                        features[0, 59] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
     # add color palette datamap
     features[0, 60:63] = get_palette_datamap(image_file)
     # add body pose datamap

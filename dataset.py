@@ -59,7 +59,7 @@ class MyDataset(Dataset):
         # finally SGfy has to be called to generate the extended scene graph.
 
         # load the extended scene graph file in a dictionary
-        with open("data/input/extended_sg/extended_sg_" + image_file.split(".")[0] + ".json") as f:
+        with open("../dataset/FFHQ/extended_sg/" + image_file.split(".")[0] + ".json") as f:
             ext_sg = json.load(f)
 
         out = {}
@@ -127,7 +127,7 @@ class MyDataset(Dataset):
 
         # read image
         # raw_image = Image.open(os.path.join(self.image_root_path, image_file))
-        raw_image = Image.open("data/input/images/" + image_file)
+        raw_image = Image.open("../dataset/FFHQ/FFHQ-itw-512/" + image_file)
         image = self.transform(raw_image.convert("RGB"))
         clip_image = self.controller_transforms(images=raw_image, return_tensors="pt").pixel_values
 
@@ -191,7 +191,7 @@ class MyDataset(Dataset):
         grayImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         # turn the greyscale image into a black and white one
         _, blackAndWhiteImage = cv2.threshold(grayImage, 1, 1, cv2.THRESH_BINARY)
-        cv2.imwrite("data/input/openpose/" + image_file.split(".")[0] + ".png", blackAndWhiteImage)
+        cv2.imwrite("../dataset/FFHQ/openpose/" + image_file, blackAndWhiteImage)
 
     def palette_preprocessing(self, img: np.array, h: int, w: int, image_file: str):
         # resize image to get a 1/8 downsample
@@ -209,7 +209,7 @@ class MyDataset(Dataset):
         res = center[label_flat]
         # rehape to the resized image dimensions and bring values in [0, 1) range
         res = res.reshape(img_r.shape)
-        cv2.imwrite("data/input/palette/" + image_file.split(".")[0] + ".png", res)
+        cv2.imwrite("../dataset/FFHQ/palette/" + image_file, res)
 
     def preprocessing(self):
         h = w = self.size // 8
@@ -218,7 +218,7 @@ class MyDataset(Dataset):
             image_file = item["file_name"]
 
             # read original image, convert it into RGB format and resize it into the needed shape
-            raw_image = Image.open("data/input/images/" + image_file)
+            raw_image = Image.open("../dataset/FFHQ/FFHQ-itw-512/" + image_file)
             tfms = transforms.Compose([
                 transforms.Resize(512, interpolation=transforms.InterpolationMode.BILINEAR),
                 transforms.CenterCrop(512),

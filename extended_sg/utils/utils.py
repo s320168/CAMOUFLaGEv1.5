@@ -56,6 +56,8 @@ def add_objects_depth(input_data: dict, output_data: dict, input_filename: str, 
         b[1].compute_instances_norm(np_frame_p, np_frame_p.max()+1)
         max_ratio = 0
         max_depth = 0
+        instance_max_ratio = -1
+        instance_max_depth = -1
         # max_norm_presence = 0
         for i in b[1].get_instances_found():
             # keep track of the instance which has the highest ratio of pixels contained in the bounding box with respect to the instance's pixels across the entire image
@@ -79,6 +81,10 @@ def add_objects_depth(input_data: dict, output_data: dict, input_filename: str, 
             np_frame_p = np.where(np_frame_p == choice, -1, np_frame_p)
         # if no instance is almost completely contained in the bounding box, proceed on selecting the nearest surface to the camera
         else:
+            # case when instances not found
+            if instance_max_depth == -1 and len(b[1].get_instances_found()) > 0:
+                instance_max_depth, _ = sorted(b[1].get_instances_found().items(), key=lambda item: item[1]["count"], reverse=True)[0]
+                max_depth = depth_data.sum()/b[1].get_instance_count(instance_max_depth)
             choice = instance_max_depth
             depth = max_depth
         # assign depth data to object                
@@ -110,17 +116,17 @@ def add_persons_characteristics(input_data: dict, output_data: dict, config: dic
                 o["attributes"]["ethnicity_scores"] = persons["ethnicity_scores"][i]
                 break
         # if no object corresponds to the "face_boxes" info: create a new "human face" object with the available data
-        if not found:
-            new_face = dict()
-            new_face["id"] = len(output_data["objects"])
-            new_face["type"] = "human face"
-            new_face["position"] = faceA_bbox.get_coords()
-            new_face["attributes"] = {
-                "age": persons["age"][i],
-                "gender_scores": persons["gender_scores"][i],
-                "ethnicity_scores": persons["ethnicity_scores"][i]
-            }
-            output_data["objects"].append(new_face)
+        # if not found:
+        #     new_face = dict()
+        #     new_face["id"] = len(output_data["objects"])
+        #     new_face["type"] = "human face"
+        #     new_face["position"] = faceA_bbox.get_coords()
+        #     new_face["attributes"] = {
+        #         "age": persons["age"][i],
+        #         "gender_scores": persons["gender_scores"][i],
+        #         "ethnicity_scores": persons["ethnicity_scores"][i]
+        #     }
+        #     output_data["objects"].append(new_face)
 
 
 def add_faces_emotions(input_data: dict, output_data: dict, config: dict) -> None:
@@ -146,13 +152,13 @@ def add_faces_emotions(input_data: dict, output_data: dict, config: dict) -> Non
                 o["attributes"]["emotion_scores"] = emotions["emotion_scores"][i]
                 break
         # if no object corresponds to the "face_boxes" info: create a new "human face" object with the available data
-        if not found:
-            new_face = dict()
-            new_face["id"] = len(output_data["objects"])
-            new_face["type"] = "human face"
-            new_face["position"] = faceA_bbox.get_coords()
-            new_face["attributes"] = {"emotion_scores": emotions["emotion_scores"][i]}
-            output_data["objects"].append(new_face)
+        # if not found:
+        #     new_face = dict()
+        #     new_face["id"] = len(output_data["objects"])
+        #     new_face["type"] = "human face"
+        #     new_face["position"] = faceA_bbox.get_coords()
+        #     new_face["attributes"] = {"emotion_scores": emotions["emotion_scores"][i]}
+        #     output_data["objects"].append(new_face)
 
 
 def add_head_pose(input_data: dict, output_data: dict, config: dict) -> None:
@@ -177,13 +183,13 @@ def add_head_pose(input_data: dict, output_data: dict, config: dict) -> None:
                 o["attributes"]["head_pose"] = {"yaw": head_poses["yaw"][i], "pitch": head_poses["pitch"][i], "roll": head_poses["roll"][i]}
                 break
         # if no object corresponds to the "face_boxes" info: create a new "human face" object with the available data
-        if not found:
-            new_face = dict()
-            new_face["id"] = len(output_data["objects"])
-            new_face["type"] = "human face"
-            new_face["position"] = faceA_bbox.get_coords()
-            new_face["attributes"] = {"head_pose": {"yaw": head_poses["yaw"][i], "pitch": head_poses["pitch"][i], "roll": head_poses["roll"][i]}}
-            output_data["objects"].append(new_face)
+        # if not found:
+        #     new_face = dict()
+        #     new_face["id"] = len(output_data["objects"])
+        #     new_face["type"] = "human face"
+        #     new_face["position"] = faceA_bbox.get_coords()
+        #     new_face["attributes"] = {"head_pose": {"yaw": head_poses["yaw"][i], "pitch": head_poses["pitch"][i], "roll": head_poses["roll"][i]}}
+        #     output_data["objects"].append(new_face)
 
 
 def add_gaze_direction(input_data: dict, output_data: dict) -> None:
@@ -258,7 +264,7 @@ def add_positional_relations(output_data: dict, config: dict) -> None:
             bbox_j = BoundingBox(output_data["objects"][j]["position"]["x0"], output_data["objects"][j]["position"]["y0"], output_data["objects"][j]["position"]["x1"], output_data["objects"][j]["position"]["y1"])
             relation = ""
             # depth relation between objects: if their bounding boxes are overlapping and a depth value is available
-            if iou(bbox_i, bbox_j) > config.threshold.depth_overlap:
+            if iou(bbox_i, bbox_j) > config.threshold.depth_overlap and output_data["objects"][j]["depth"] != 0:
                 # in front of-position case
                 if output_data["objects"][i]["depth"] / output_data["objects"][j]["depth"] > config.threshold.depth_upper_limit:
                     relation = "in front of"
@@ -320,7 +326,7 @@ def add_face_person_relations(output_data: dict, input_filename: str, config: di
         # select which mask contains the "human face" object and keep its id
         instance_val = seg_map[int((bbox_i.get_y1()+bbox_i.get_y0())/2)][int((bbox_i.get_x1()+bbox_i.get_x0())/2)]
         # instance_val will be used as a denominator so it has to be greater than 0
-        assert instance_val > 0
+        # assert instance_val > 0
         for b in persons_bbox:
             # verify that the "human face" object is contained in the "person" object
             if A_contains_B(b[1], bbox_i):
