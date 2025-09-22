@@ -63,9 +63,11 @@ def write_crop(image, crop_path, face, embed_path):
 @click.option("--lb", type=int, help="Lower bound", default=0)
 @click.option("--no_seamless_copy", is_flag=True, help="Disable seamless copy")
 @click.option("--output_verbose", is_flag=True, help="Output verbose")
+@click.option('--cfg', type=float, help='Guidance scale', default=3)
+@click.option("--usev2", is_flag=True, help="Use Resampler2 for image projection")
 def main(crop_path, method, file_index, batch_size, base_model_path, vae_model_path, image_encoder_path,
          ip_ckpt, device, output_folder, in_folder, negative_path, skip_t2i, seed, strength, alpha, max_size,
-         min_threshold, num_inference_steps, lb, no_seamless_copy, output_verbose):
+         min_threshold, num_inference_steps, lb, no_seamless_copy, output_verbose, cfg, usev2):
     original_path = Path(crop_path)
     file_index = Path(file_index)
     output_folder = Path(output_folder)
@@ -86,8 +88,8 @@ def main(crop_path, method, file_index, batch_size, base_model_path, vae_model_p
     crop_path.mkdir(parents=True, exist_ok=True)
     embeddings_path.mkdir(parents=True, exist_ok=True)
 
-    image_list = [p for p in original_path.glob('*.*') if p.suffix.lower() in [".jpg", ".png", ".jpeg"]]
-    assert len(image_list) > 0, "No images found"
+    # image_list = [p for p in original_path.glob('*.*') if p.suffix.lower() in [".jpg", ".png", ".jpeg"]]
+    # assert len(image_list) > 0, "No images found"
 
     # for path in tqdm(image_list, desc="Checking cropped images..."):
     #     p_crop = crop_path / f"{path.stem}.png"
@@ -134,7 +136,7 @@ def main(crop_path, method, file_index, batch_size, base_model_path, vae_model_p
         pipe.load_textual_inversion(negative_path, token="easyneg")
 
     ip_model = IPAdapterPlusFT(pipe, image_encoder=image_encoder_path, controller_transforms=None, image_proj=ip_ckpt,
-                               ip_adapter=ip_ckpt, t2i_adapter=ip_ckpt if not skip_t2i else None, device=device)
+                               ip_adapter=ip_ckpt, t2i_adapter=ip_ckpt if not skip_t2i else None, device=device, usev2=usev2)
 
     ip_model.to(device, torch.float16)
 
@@ -198,19 +200,42 @@ def main(crop_path, method, file_index, batch_size, base_model_path, vae_model_p
             latent_max = max(latent_shape_h, latent_shape_w)
             shape_max = max(h, w)
             # torch.save(attrs, out / "attrs.pt")
-            with open("dataset/FFHQ/extended_sg/" + path.split(".")[0] + ".json") as f:
+            with open("../dataset/FFHQ/extended_sg/val2/extended_sg_" + path.parts[-1].split(".")[0] + ".json") as f:
                 ext_sg = json.load(f)
-            res = get_datamaps(ext_sg, shape_max, shape_max, path)
+            res = get_datamaps(ext_sg, shape_max, shape_max, os.path.join(Path("val2/"), path.parts[-1]))
 
         if isinstance(new_image, np.ndarray):
             new_image = Image.fromarray(new_image)
-        prompt = "A woman and a young girl posing for a picture together with other people in the background at a park. cup in front of person, cup to the right of person, cup below person, cup below-left of footwear, sneakers, cup below person, person next to person, person in front of person, person in front of footwear, sneakers, person in front of person, person in front of person, person below-left of footwear, sneakers" if path.split(".")[0] == "1" else "A woman wearing a headset in front of a blue screen with a bright light in the middle of it. person has human face, person next to microphone, person next to microphone, person next to human eye, person next to human nose, microphone next to microphone, microphone below-left of human eye, microphone below-left of human nose, microphone below-left of human eye, microphone below-left of human nose, human eye above-left of human nose"
-        prompt_caption = prompt.split(".")[0] + "."
-        prompt_triplets = prompt.split(".")[1] + "."
+        prompt_caption = ext_sg["scene"]["single_action_caption"]
+        triplets = ""
+        hit_max_len = False
+        for rel in ext_sg["relationships"]:
+            subj_hit = False
+            obj_hit = False
+            for obj in ext_sg["objects"]:
+                if obj["id"] == rel["source"] and not subj_hit:
+                    subj_hit = True
+                    subject = obj["type"]
+                elif obj["id"] == rel["target"] and not obj_hit:
+                    obj_hit = True
+                    object = obj["type"]
+                if subj_hit and obj_hit:
+                    next_triplets = triplets + f"{subject} {rel["type"]} {object}, "
+                    if next_triplets.count(" ") + next_triplets.count(",")-1 + next_triplets.count("-")*2 <= 77:
+                        triplets = next_triplets
+                    else:
+                        hit_max_len = True
+                    break
+            if hit_max_len:
+                break
+        prompt_triplets = triplets[:-2]
+
         images = ip_model.generate(pil_image=new_image, num_samples=1, num_inference_steps=num_inference_steps,
                                    seed=seed,
-                                   guidance_scale=3,
-                                   prompt_caption=prompt_caption, prompt_triplets=prompt_triplets, negative_prompt="easyneg", 
+                                   guidance_scale=cfg,
+                                   prompt=prompt_caption,
+                                   prompt_triplets=prompt_triplets,
+                                   negative_prompt="easyneg", 
                                    image=Image.blend(new_image, image, alpha), strength=strength, scale=1,
                                    down_block_additional_residuals=None if res is None else ip_model.t2i_adapter(
                                        res.to(device, torch.float16)))
@@ -220,7 +245,7 @@ def main(crop_path, method, file_index, batch_size, base_model_path, vae_model_p
                 get_concat_h(image, new_image, img,
                              Image.fromarray(images_to_grid(face_used)).resize(image.size)).save(
                     output_folder / f"{out_name}_{i}_new.png")
-            img.save(output_folder / f"{out_name}_{seed + i}.png")
+            img.save(output_folder / f"{out_name}_{seed + i}_str_{strength}_cfg_{cfg}.png")
 
 
 if __name__ == '__main__':

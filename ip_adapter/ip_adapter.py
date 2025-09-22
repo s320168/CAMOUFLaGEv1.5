@@ -14,7 +14,7 @@ if is_torch2_available():
         CNAttnProcessor2_0 as CNAttnProcessor
 else:
     from .attention_processor import IPAttnProcessor, AttnProcessor, CNAttnProcessor
-from .resampler import Resampler
+from .resampler import Resampler, ResamplerV2
 
 
 class ImageProjModel(torch.nn.Module):
@@ -247,8 +247,9 @@ class IPAdapterXL(IPAdapter):
 class IPAdapterPlus(IPAdapter):
     """IP-Adapter with fine-grained features"""
 
-    def init_proj(self):
-        image_proj_model = Resampler(
+    def init_proj(self, usev2):
+        resampler_class = Resampler if not usev2 else ResamplerV2
+        image_proj_model = resampler_class(
             dim=self.pipe.unet.config.cross_attention_dim,
             depth=4,
             dim_head=64,

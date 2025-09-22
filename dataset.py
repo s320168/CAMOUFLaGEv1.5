@@ -11,11 +11,12 @@ from utils import get_datamaps
 import json
 import cv2
 import numpy as np
+import os
 
 
 class MyDataset(Dataset):
     def __init__(self, json_file, tokenizer, size=512, t_drop_rate=0.05, i_drop_rate=0.05, ti_drop_rate=0.05, tfms=None, controller_tfms=None,
-                 use_t2i=False, pose_processor=None, use_gligen=False, max_boxes_per_data=8, embedding_len=768, token_len=77):
+                 use_t2i=False, pose_processor=None, use_triplets=False, max_boxes_per_data=8, embedding_len=768, token_len=77):
         super().__init__()
 
         self.tokenizer = tokenizer
@@ -39,10 +40,10 @@ class MyDataset(Dataset):
             controller_tfms = CLIPImageProcessor()
         self.controller_transforms = controller_tfms
         self.use_t2i = use_t2i
-        if self.use_t2i is not None and pose_processor is not None:
+        if self.use_t2i and pose_processor is not None:
             self.pose_processor = pose_processor
             self.preprocessing()
-        self.use_gligen = use_gligen
+        self.use_triplets = use_triplets
         self.max_boxes_per_data = max_boxes_per_data
         self.embedding_len = embedding_len
         self.token_len = token_len
@@ -68,62 +69,28 @@ class MyDataset(Dataset):
 
         # convert relationships triplets into the corresponding strings "subject relation object"
         triplets = ""
-        areas = []
-        boxes = []
-        objs = []
-        hit_max_len = False
-        for rel in ext_sg["relationships"]:
-            subj_hit = False
-            obj_hit = False
-            for obj in ext_sg["objects"]:
-                if obj["id"] == rel["source"] and not subj_hit:
-                    subj_hit = True
-                    subject = obj["type"]
-                    if self.use_gligen and obj["position"] not in boxes:
-                        # could lead to bugs if max triplets length (self.token_len tokens) is overtaken from the last triplet, thus discarding it but maintaning object boxes here appended  
-                        areas.append((obj["position"]["x1"]-obj["position"]["x0"])*(obj["position"]["y1"]-obj["position"]["y0"]))
-                        boxes.append(obj["position"])
-                        objs.append(obj["type"])
-                elif obj["id"] == rel["target"] and not obj_hit:
-                    obj_hit = True
-                    object = obj["type"]
-                    if self.use_gligen and obj["position"] not in boxes:
-                        # could lead to bugs if max triplets length (self.token_len tokens) is overtaken from the last triplet, thus discarding it but maintaning object boxes here appended
-                        areas.append((obj["position"]["x1"]-obj["position"]["x0"])*(obj["position"]["y1"]-obj["position"]["y0"]))
-                        boxes.append(obj["position"])
-                        objs.append(obj["type"])
-                if subj_hit and obj_hit:
-                    next_triplets = triplets + f"{subject} {rel["type"]} {object}, "
-                    if next_triplets.count(" ") + next_triplets.count(",")-1 + next_triplets.count("-")*2 <= self.token_len:
-                        triplets = next_triplets
-                    else:
-                        hit_max_len = True
+        if self.use_triplets:
+            hit_max_len = False
+            for rel in ext_sg["relationships"]:
+                subj_hit = False
+                obj_hit = False
+                for obj in ext_sg["objects"]:
+                    if obj["id"] == rel["source"] and not subj_hit:
+                        subj_hit = True
+                        subject = obj["type"]
+                    elif obj["id"] == rel["target"] and not obj_hit:
+                        obj_hit = True
+                        object = obj["type"]
+                    if subj_hit and obj_hit:
+                        next_triplets = triplets + f"{subject} {rel["type"]} {object}, "
+                        if next_triplets.count(" ") + next_triplets.count(",")-1 + next_triplets.count("-")*2 <= self.token_len:
+                            triplets = next_triplets
+                        else:
+                            hit_max_len = True
+                        break
+                if hit_max_len:
                     break
-            if hit_max_len:
-                break
-
-        if self.use_gligen:
-            # Sort according to area and choose the largest N objects   
-            wanted_idxs = torch.tensor(areas).sort(descending=True)[1]
-            wanted_idxs = wanted_idxs[0:self.max_boxes_per_data]
-
-            boxes_tensor = torch.zeros(self.max_boxes_per_data, 4)
-            masks_tensor = torch.zeros(self.max_boxes_per_data)
-            text_embeddings = torch.zeros(self.max_boxes_per_data, self.embedding_len)
-
-            for i, idx in enumerate(wanted_idxs):
-                boxes_tensor[i] = boxes[idx]
-                masks_tensor[i] = 1
-                text_embeddings[i] = objs[idx]
-
-            out["gounding_input"] = {
-                "boxes": boxes_tensor,
-                "masks": masks_tensor,
-                "text_embeddings": text_embeddings
-            }
-
-        # concatenate triplets to the caption
-        triplets = triplets[:-2]
+            triplets = triplets[:-2]
 
         # read image
         # raw_image = Image.open(os.path.join(self.image_root_path, image_file))
@@ -161,7 +128,7 @@ class MyDataset(Dataset):
         ).input_ids
 
         res = None
-        if self.use_t2i is not None:
+        if self.use_t2i:
             raw_image = ((image / 2 + 0.5) * 255).unsqueeze(0)
             with torch.inference_mode():
                 shape = image.shape[-1]
@@ -226,8 +193,10 @@ class MyDataset(Dataset):
             ])
             image = tfms(raw_image.convert("RGB"))
             img = image.numpy().transpose(1, 2, 0)
-            self.pose_preprocessing(img, h, w, image_file)
-            self.palette_preprocessing(img, h, w, image_file)
+            if not os.path.isfile("../dataset/FFHQ/openpose/" + image_file):
+                self.pose_preprocessing(img, h, w, image_file)
+            if not os.path.isfile("../dataset/FFHQ/palette/" + image_file):
+                self.palette_preprocessing(img, h, w, image_file)
 
 def collate_fn(data):
     images = torch.stack([example["image"] for example in data])

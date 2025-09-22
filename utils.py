@@ -204,6 +204,12 @@ def parse_args():
         help="Path to an improved VAE to stabilize training. For more details check out: https://github.com/huggingface/diffusers/pull/4038.",
     )
     parser.add_argument(
+        "--resume_from_checkpoint",
+        type=str,
+        default=None,
+        help="Path to a pretrained IP-Adapter checkpoint to resume training.",
+    )
+    parser.add_argument(
         "--validation_steps",
         type=int,
         default=100,
@@ -234,10 +240,9 @@ def parse_args():
 
     parser.add_argument(
         "--use_t2i",
-        type=str,
-        default=None,
+        action="store_true",
         help=(
-            "Which model to use as T2I-Adapter (options: 'facer' and 'controlnet')"
+            "Whether or not to use T2I-Adapter"
         ),
     )
 
@@ -254,26 +259,7 @@ def parse_args():
 
     parser.add_argument("--usev2", action="store_true", help="usev2")
 
-    parser.add_argument(
-        "--use_gligen", 
-        action="store_true", 
-        help=(
-            "Use GLIGEN's text grounding to manage entities based on label-bounding box correspondance"
-        )
-    )
-
-    parser.add_argument(
-        "--use_farl", 
-        action="store_true", 
-        help=(
-            "Use FaRL encoder to extract more image features from the input"
-        )
-    )
-
     args = parser.parse_args()
-
-    if args.use_gligen and args.use_triplets is None:
-        parser.error("--use_gligen requires --use_triplets.")
 
     env_local_rank = int(os.environ.get("LOCAL_RANK", -1))
     if env_local_rank != -1 and env_local_rank != args.local_rank:
@@ -284,7 +270,7 @@ def parse_args():
 
 class IPAdapterPlusXLFT(IPAdapterPlusXL):
     def __init__(self, pipe, image_encoder, controller_transforms, image_proj=None, ip_adapter=None, t2i_adapter=None,
-                 device=None):
+                 device=None, usev2=False):
         self.pipe = pipe
         self.device = device
         # load image encoder
@@ -331,9 +317,22 @@ class IPAdapterPlusXLFT(IPAdapterPlusXL):
 
 class IPAdapterPlusFT(IPAdapterPlus):
     def __init__(self, pipe, image_encoder, controller_transforms, image_proj=None, ip_adapter=None, t2i_adapter=None,
-                 device=None):
+                 device=None, usev2=False):
         self.pipe = pipe
         self.device = device
+        image_proj_dict = None
+        ip_adapter_dict = None
+        t2i_adapter_dict = None
+        if image_proj == ip_adapter and ip_adapter == t2i_adapter:
+            s_d = torch.load(image_proj, map_location="cpu")
+            state_dict = {"image_proj": {}, "ip_adapter": {}, "t2i_adapter": {}}
+            for key in state_dict:
+                for k in s_d:
+                    if key in k:
+                        state_dict[key][k[len(key)+1:]] = s_d[k]
+            image_proj_dict = state_dict["image_proj"]
+            ip_adapter_dict = state_dict["ip_adapter"]
+            t2i_adapter_dict = state_dict["t2i_adapter"]
         # load image encoder
         if isinstance(image_encoder, (str, Path)):
             self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(image_encoder).to(dtype=torch.float16)
@@ -344,9 +343,12 @@ class IPAdapterPlusFT(IPAdapterPlus):
             # image proj model
             if isinstance(image_proj, (str, Path)):
                 self.num_tokens = 16
-                state_dict = torch.load(image_proj, map_location="cpu")
-                self.image_proj_model = self.init_proj()
-                self.image_proj_model.load_state_dict(state_dict["image_proj"])
+                self.image_proj_model = self.init_proj(usev2)
+                if image_proj_dict is None:
+                    state_dict = torch.load(image_proj, map_location="cpu")
+                    self.image_proj_model.load_state_dict(state_dict["image_proj"])
+                else:
+                    self.image_proj_model.load_state_dict(image_proj_dict)
             else:
                 self.image_proj_model = image_proj
         else:
@@ -357,13 +359,21 @@ class IPAdapterPlusFT(IPAdapterPlus):
             self.set_ip_adapter()
             state_dict = torch.load(ip_adapter, map_location="cpu")
             ip_layers = torch.nn.ModuleList(self.pipe.unet.attn_processors.values())
-            ip_layers.load_state_dict(state_dict["ip_adapter"])
+            if ip_adapter_dict is None:
+                state_dict = torch.load(ip_adapter, map_location="cpu")
+                ip_layers.load_state_dict(state_dict["ip_adapter"])
+            else:
+                ip_layers.load_state_dict(ip_adapter_dict)
 
         if isinstance(t2i_adapter, (str, Path)):
-            state_dict = torch.load(t2i_adapter, map_location="cpu")
+            if t2i_adapter_dict is None:
+                state_dict = torch.load(t2i_adapter, map_location="cpu")
             if "t2i_adapter" in state_dict and len(state_dict["t2i_adapter"]) != 0:
                 self.t2i_adapter = FacerAdapter()
-                self.t2i_adapter.load_state_dict(state_dict["t2i_adapter"])
+                if t2i_adapter_dict is None:
+                    self.t2i_adapter.load_state_dict(state_dict["t2i_adapter"])
+                else:
+                    self.t2i_adapter.load_state_dict(t2i_adapter_dict)
             else:
                 self.t2i_adapter = None
                 del state_dict

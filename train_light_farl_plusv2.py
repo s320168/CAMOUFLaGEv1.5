@@ -22,6 +22,7 @@ from ip_adapter.utils import is_torch2_available, init_ip_adapter, FacerAdapter
 from pipelines import StableDiffusionImg2ImgPipelineRes
 from utils import parse_args, set_requires_grad, set_device_dtype, IPAdapterPlusFT, get_datamaps
 from controlnet_aux import OpenposeDetector
+from math import ceil
 
 if is_torch2_available():
     from diffusers.models.attention_processor import AttnProcessor2_0 as AttnProcessor
@@ -61,17 +62,10 @@ def main():
     # Load scheduler, tokenizer and models.
     noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
     tokenizer = CLIPTokenizer.from_pretrained(args.pretrained_model_name_or_path, subfolder="tokenizer")
-    text_encoder = CLIPTextModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="text_encoder")
-    if args.use_gligen:
-        # define custom UNetConditionedModel
-        print("GLIGEN not yet implemented")
-    else:
-        unet = UNet2DConditionModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="unet")
-        unet.set_attn_processor(AttnProcessor())
-        grounding_tokenizer_input = None
-    if args.use_farl:
-        image_encoder = CLIPVisionModelWithProjection.from_pretrained(args.image_encoder_path)
-    # here would be added FRESCO and the selected SGG model loadings
+    text_encoder = CLIPTextModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="text_encoder").to(accelerator.device)
+    unet = UNet2DConditionModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="unet").to(accelerator.device)
+    unet.set_attn_processor(AttnProcessor())
+    image_encoder = CLIPVisionModelWithProjection.from_pretrained(args.image_encoder_path).to(accelerator.device)
 
     vae_path = (
         args.pretrained_model_name_or_path
@@ -82,26 +76,22 @@ def main():
         vae_path,
         subfolder="vae" if args.pretrained_vae_model_name_or_path is None else None,
         revision=args.revision,
-    )
+    ).to(accelerator.device)
     # freeze parameters of models to save more memory
     set_requires_grad(False, vae, unet, text_encoder)
     if args.use_farl:
         set_requires_grad(False, image_encoder)
 
     # ip-adapter-plus
-    if args.use_t2i == "facer":
+    if args.use_t2i:
         t2i_adapter = FacerAdapter()
-    elif args.use_t2i == "controlnet":
-        t2i_adapter = ControlNetModel(conditioning_channels=64)
     else:
-        logger.info("No T2I-Adapter has been selected")
-        print("No T2I-Adapter has been selected")
         t2i_adapter = None
-    ip_adapter = init_ip_adapter(num_tokens=16, unet=unet, image_encoder=image_encoder if args.use_farl else None, 
+    ip_adapter = init_ip_adapter(num_tokens=16, unet=unet, image_encoder=image_encoder, 
                                  usev2=args.usev2, t2i_adapter=t2i_adapter)
 
     # define OpenPose model and transfer it on the device used
-    if args.use_t2i is not None:
+    if args.use_t2i:
         openpose_processor = OpenposeDetector.from_pretrained('lllyasviel/ControlNet').to(accelerator.device)
 
     if args.load_adapter_path is not None:
@@ -114,23 +104,17 @@ def main():
 
     # set_device_dtype(accelerator.device, weight_dtype, vae, unet, text_encoder, image_encoder, ip_adapter)
 
-    vae, unet, text_encoder, ip_adapter = accelerator.prepare(
-        vae, unet, text_encoder, ip_adapter
-    )
-    if args.use_farl:
-        image_encoder = accelerator.prepare(image_encoder) 
-
     # optimizer
     optimizer = torch.optim.AdamW(
-        itertools.chain(ip_adapter.image_proj.parameters() if args.use_farl else [], ip_adapter.ip_adapter.parameters(),
+        itertools.chain(ip_adapter.image_proj.parameters(), ip_adapter.ip_adapter.parameters(),
                         ip_adapter.t2i_adapter.parameters() if ip_adapter.t2i_adapter is not None else []),
         lr=args.learning_rate, weight_decay=args.weight_decay)
 
     # dataloader
     dataset = MyDataset(args.data_file, tokenizer=tokenizer, size=args.resolution, use_t2i=args.use_t2i,
                         controller_tfms=CLIPImageProcessor(args.image_encoder_path), 
-                        pose_processor=openpose_processor if args.use_t2i is not None else None,
-                        use_gligen=args.use_gligen)
+                        pose_processor=openpose_processor if args.use_t2i is not None else None, 
+                        use_triplets=args.use_triplets)
 
     tfms, controller_transforms = dataset.transform, dataset.controller_transforms
     train_dataloader = DataLoader(
@@ -151,7 +135,12 @@ def main():
         tracker_config.pop("validation_image")
         accelerator.init_trackers(args.tracker_project_name, config=tracker_config)
 
-    max_train_steps = args.num_train_epochs * len(train_dataloader.dataset)
+    if args.resume_from_checkpoint is not None:
+        logger.info(f"***** Resuming training from checkpoint {args.resume_from_checkpoint} *****")
+        print(f"Resuming training from checkpoint {args.resume_from_checkpoint}")
+        accelerator.load_state(args.resume_from_checkpoint)
+
+    max_train_steps = args.num_train_epochs * ceil(len(train_dataloader.dataset) / args.train_batch_size)
 
     logger.info("***** Running training *****")
     logger.info(f"  Num examples = {len(train_dataloader.dataset)}")
@@ -199,16 +188,15 @@ def main():
                 # (this is the forward diffusion process)
                 noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
 
-                if args.use_farl:
-                    clip_images = []
-                    for clip_image, drop_image_embed in zip(batch["clip_images"], batch["drop_image_embeds"]):
-                        if drop_image_embed == 1:
-                            clip_images.append(torch.zeros_like(clip_image))
-                        else:
-                            clip_images.append(clip_image)
-                    clip_images = torch.stack(clip_images, dim=0)
-                    with torch.no_grad():
-                        image_embeds = image_encoder(clip_images,
+                clip_images = []
+                for clip_image, drop_image_embed in zip(batch["clip_images"], batch["drop_image_embeds"]):
+                    if drop_image_embed == 1:
+                        clip_images.append(torch.zeros_like(clip_image))
+                    else:
+                        clip_images.append(clip_image)
+                clip_images = torch.stack(clip_images, dim=0)
+                with torch.no_grad():
+                    image_embeds = image_encoder(clip_images,
                                                     output_hidden_states=True).hidden_states[-2]
 
                 with torch.no_grad():
@@ -218,17 +206,14 @@ def main():
                     else:
                         encoder_hidden_states_triplets = None
 
-                grounding_input = None
                 if args.use_t2i:
                     image_embeds2 = batch["facer"].to(accelerator.device)
-                    if args.use_gligen:
-                        grounding_input = grounding_tokenizer_input.prepare(batch)
                 else:
                     image_embeds2 = None
 
                 noise_pred = ip_adapter(unet, noisy_latents, timesteps, encoder_hidden_states_caption, 
-                                        encoder_hidden_states_triplets, image_embeds if args.use_farl else None, 
-                                        image_embeds2=image_embeds2, grounding_input=grounding_input)
+                                        encoder_hidden_states_triplets, image_embeds, 
+                                        image_embeds2=image_embeds2)
 
                 loss = F.mse_loss(noise_pred.float(), noise.float(), reduction="mean")
 
@@ -247,7 +232,7 @@ def main():
                     if accelerator.is_main_process:
                         if global_step % args.checkpointing_steps == 0:
                             save_path = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
-                            accelerator.save_state(save_path, safe_serialization=False, exclude_frozen_parameters=True)
+                            accelerator.save_state(save_path, safe_serialization=False)
                             logger.info(f"Saved state to {save_path}")
 
                         if args.validation_prompt is not None and global_step % args.validation_steps == 0:
@@ -258,7 +243,7 @@ def main():
                                 unet,
                                 tfms,
                                 controller_transforms,
-                                image_encoder if args.use_farl else None,
+                                image_encoder,
                                 ip_adapter,
                                 args,
                                 accelerator,
@@ -329,27 +314,48 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
         ])
         validation_image = crop(validation_image)
         validation_prompt = validation_prompt.split(".")
-        if args.use_triplets and len(validation_prompt[1]) > 0:
-            validation_prompt[1] = validation_prompt[1][1:]
-        else:
-            validation_prompt[1] = None
 
         images = []
         with torch.autocast("cuda"), torch.no_grad():
             with torch.inference_mode():
+                # load the extended scene graph file in a dictionary
+                with open("../dataset/FFHQ/extended_sg/" + image_file.split(".")[0] + ".json") as f:
+                    ext_sg = json.load(f)
                 if ipAdapterTrainer.t2i_adapter is None:
                     res = None
                 else:
                     raw_image = ((tfms(validation_image) / 2 + 0.5) * 255).unsqueeze(0).to(accelerator.device)
                     shape = raw_image.shape[-1]
                     latent_shape = shape // 8
-                    # load the extended scene graph file in a dictionary
-                    with open("../dataset/FFHQ/extended_sg/" + image_file.split(".")[0] + ".json") as f:
-                        ext_sg = json.load(f)
-                    res = get_datamaps(ext_sg, shape, shape, image_file)
+                    if args.use_t2i:
+                        res = get_datamaps(ext_sg, shape, shape, image_file)
+                validation_prompt = ext_sg["scene"]["single_action_caption"]
+                triplets = ""
+                if args.use_triplets:
+                    hit_max_len = False
+                    for rel in ext_sg["relationships"]:
+                        subj_hit = False
+                        obj_hit = False
+                        for obj in ext_sg["objects"]:
+                            if obj["id"] == rel["source"] and not subj_hit:
+                                subj_hit = True
+                                subject = obj["type"]
+                            elif obj["id"] == rel["target"] and not obj_hit:
+                                obj_hit = True
+                                object = obj["type"]
+                            if subj_hit and obj_hit:
+                                next_triplets = triplets + f"{subject} {rel["type"]} {object}, "
+                                if next_triplets.count(" ") + next_triplets.count(",")-1 + next_triplets.count("-")*2 <= 77:
+                                    triplets = next_triplets
+                                else:
+                                    hit_max_len = True
+                                break
+                        if hit_max_len:
+                            break
+                    triplets = triplets[:-2]
 
             tmp = ip_model.generate(pil_image=validation_image, num_samples=args.num_validation_images,
-                                    num_inference_steps=30, prompt=validation_prompt[0], prompt_triplets=validation_prompt[1], 
+                                    num_inference_steps=30, prompt=validation_prompt, prompt_triplets=triplets, 
                                     seed=args.seed, negative_prompt=token, image=validation_image, strength=1.0,
                                     scale=0.8 if len(validation_prompt) > 1 else 1.0,
                                     down_block_additional_residuals=None if res is None else ipAdapterTrainer.t2i_adapter(

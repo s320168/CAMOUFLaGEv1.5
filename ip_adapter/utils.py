@@ -32,7 +32,7 @@ class IPAdapterTrainer(torch.nn.Module):
             self.load_from_checkpoint(ckpt_path)
 
     def forward(self, unet, noisy_latents, timesteps, encoder_hidden_states_caption, encoder_hidden_states_triplets, image_embeds, image_embeds2=None,
-                unet_added_cond_kwargs=None, grounding_input=None):
+                unet_added_cond_kwargs=None):
         if self.image_proj is not None:
             ip_tokens = self.image_proj(image_embeds)
             # check if relation triplets are being used
@@ -47,10 +47,7 @@ class IPAdapterTrainer(torch.nn.Module):
                 encoder_hidden_states = encoder_hidden_states_caption
         down_block_additional_residuals = None
         if image_embeds2 is not None and self.t2i_adapter is not None:
-            if isinstance(self.t2i_adapter, FacerAdapter):
-                down_block_additional_residuals = self.t2i_adapter(image_embeds2)
-            else:
-                down_block_additional_residuals = self.t2i_adapter(noisy_latents, timesteps, encoder_hidden_states, image_embeds2)
+            down_block_additional_residuals = self.t2i_adapter(image_embeds2)
         # Predict the noise residual and compute loss
         kwargs = {
             "down_block_additional_residuals": down_block_additional_residuals
@@ -58,15 +55,7 @@ class IPAdapterTrainer(torch.nn.Module):
         if unet_added_cond_kwargs is not None:
             kwargs["unet_added_cond_kwargs"] = unet_added_cond_kwargs
 
-        # check if GLIGEN's method is being used
-        if grounding_input is not None:
-            input = dict(x=noisy_latents, 
-                    timesteps=timesteps, 
-                    context=encoder_hidden_states, 
-                    grounding_input=grounding_input)
-            noise_pred = unet(input)
-        else:
-            noise_pred = unet(noisy_latents, timesteps, encoder_hidden_states, **kwargs).sample
+        noise_pred = unet(noisy_latents, timesteps, encoder_hidden_states, **kwargs).sample
         return noise_pred
 
     def load_from_checkpoint(self, ckpt_path: str):
@@ -162,7 +151,7 @@ def init_ip_adapter(unet, image_encoder, num_tokens=16, t2i_adapter=None, XL=Fal
                 ff_mult=4
             )
         else:
-            num_tokens = 16 if num_tokens is None else 32
+            num_tokens = 16 if num_tokens is not None else 32
             resampler_class = Resampler if not usev2 else ResamplerV2
             image_proj_model = resampler_class(
                 dim=unet.config.cross_attention_dim,
