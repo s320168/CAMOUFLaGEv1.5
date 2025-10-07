@@ -21,7 +21,7 @@ else:
 class IPAdapterTrainer(torch.nn.Module):
     """IPAdapterTrainer"""
 
-    def __init__(self, unet, image_proj_model, adapter_modules, t2i_adapter=None, ckpt_path=None):
+    def __init__(self, unet, image_proj_model, adapter_modules, t2i_adapter=None, ckpt_path=None, device="cpu"):
         super().__init__()
         self.unet = unet
         self.image_proj = image_proj_model
@@ -33,18 +33,12 @@ class IPAdapterTrainer(torch.nn.Module):
 
     def forward(self, unet, noisy_latents, timesteps, encoder_hidden_states_caption, encoder_hidden_states_triplets, image_embeds, image_embeds2=None,
                 unet_added_cond_kwargs=None):
-        if self.image_proj is not None:
-            ip_tokens = self.image_proj(image_embeds)
-            # check if relation triplets are being used
-            if encoder_hidden_states_triplets is not None:
-                encoder_hidden_states = torch.cat([encoder_hidden_states_caption, encoder_hidden_states_triplets, ip_tokens], dim=1)
-            else:
-                encoder_hidden_states = torch.cat([encoder_hidden_states_caption, ip_tokens], dim=1)
+        ip_tokens = self.image_proj(image_embeds)
+        # check if relation triplets are being used
+        if encoder_hidden_states_triplets is not None:
+            encoder_hidden_states = torch.cat([encoder_hidden_states_caption, encoder_hidden_states_triplets, ip_tokens], dim=1)
         else:
-            if encoder_hidden_states_triplets is not None:
-                encoder_hidden_states = torch.cat([encoder_hidden_states_caption, encoder_hidden_states_triplets], dim=1)
-            else:
-                encoder_hidden_states = encoder_hidden_states_caption
+            encoder_hidden_states = torch.cat([encoder_hidden_states_caption, ip_tokens], dim=1)
         down_block_additional_residuals = None
         if image_embeds2 is not None and self.t2i_adapter is not None:
             down_block_additional_residuals = self.t2i_adapter(image_embeds2)
@@ -60,32 +54,46 @@ class IPAdapterTrainer(torch.nn.Module):
 
     def load_from_checkpoint(self, ckpt_path: str):
         # Calculate original checksums
-        orig_ip_proj_sum = torch.sum(torch.stack([torch.sum(p) for p in self.image_proj_model.parameters()]))
-        orig_adapter_sum = torch.sum(torch.stack([torch.sum(p) for p in self.adapter_modules.parameters()]))
+        orig_ip_proj_sum = torch.sum(torch.stack([torch.sum(p) for p in self.image_proj.parameters()]))
+        orig_adapter_sum = torch.sum(torch.stack([torch.sum(p) for p in self.ip_adapter.parameters()]))
         if self.t2i_adapter is not None:
             orig_t2i_adapter_sum = torch.sum(torch.stack([torch.sum(p) for p in self.t2i_adapter.parameters()]))
 
-        state_dict = torch.load(ckpt_path, map_location="cpu")
+        #state_dict = torch.load(ckpt_path, map_location="cpu")
+        image_proj_dict = None
+        ip_adapter_dict = None
+        t2i_adapter_dict = None
+        s_d = torch.load(ckpt_path, map_location=self.device)
+        state_dict = {"image_proj": {}, "ip_adapter": {}, "t2i_adapter": {}}
+        for key in state_dict:
+            for k in s_d:
+                if key in k:
+                    state_dict[key][k[len(key)+1:]] = s_d[k]
+        image_proj_dict = state_dict["image_proj"]
+        ip_adapter_dict = state_dict["ip_adapter"]
+        if state_dict["t2i_adapter"] != {}:
+            t2i_adapter_dict = state_dict["t2i_adapter"]
 
         # Load state dict for image_proj_model and adapter_modules
-        self.image_proj_model.load_state_dict(state_dict["image_proj"], strict=True)
-        self.adapter_modules.load_state_dict(state_dict["ip_adapter"], strict=True)
+        self.image_proj.load_state_dict(image_proj_dict, strict=True)
+        self.ip_adapter.load_state_dict(ip_adapter_dict, strict=True)
         if self.t2i_adapter is not None:
-            if "t2i_adapter" in state_dict:
-                self.t2i_adapter.load_state_dict(state_dict["t2i_adapter"], strict=True)
+            #if "t2i_adapter" in state_dict:
+            if t2i_adapter_dict is not None:
+                self.t2i_adapter.load_state_dict(t2i_adapter_dict, strict=True)
             else:
                 print("Warning: t2i_adapter not found in checkpoint, skipping loading.")
 
         # Calculate new checksums
-        new_ip_proj_sum = torch.sum(torch.stack([torch.sum(p) for p in self.image_proj_model.parameters()]))
-        new_adapter_sum = torch.sum(torch.stack([torch.sum(p) for p in self.adapter_modules.parameters()]))
+        new_ip_proj_sum = torch.sum(torch.stack([torch.sum(p) for p in self.image_proj.parameters()]))
+        new_adapter_sum = torch.sum(torch.stack([torch.sum(p) for p in self.ip_adapter.parameters()]))
         if self.t2i_adapter is not None:
             new_t2i_adapter_sum = torch.sum(torch.stack([torch.sum(p) for p in self.t2i_adapter.parameters()]))
 
         # Verify if the weights have changed
         assert orig_ip_proj_sum != new_ip_proj_sum, "Weights of image_proj_model did not change!"
         assert orig_adapter_sum != new_adapter_sum, "Weights of adapter_modules did not change!"
-        if self.t2i_adapter is not None:
+        if self.t2i_adapter is not None and t2i_adapter_dict is not None:
             assert orig_t2i_adapter_sum != new_t2i_adapter_sum, "Weights of t2i_adapter did not change!"
 
         print(f"Successfully loaded weights from checkpoint {ckpt_path}")
@@ -193,4 +201,4 @@ def init_ip_adapter(unet, image_encoder, num_tokens=16, t2i_adapter=None, XL=Fal
     unet.set_attn_processor(attn_procs)
     adapter_modules = torch.nn.ModuleList(unet.attn_processors.values())
 
-    return IPAdapterTrainer(unet, image_proj_model, adapter_modules, t2i_adapter=t2i_adapter, ckpt_path=ckpt_path)
+    return IPAdapterTrainer(unet, image_proj_model, adapter_modules, t2i_adapter=t2i_adapter, ckpt_path=ckpt_path, device=device)

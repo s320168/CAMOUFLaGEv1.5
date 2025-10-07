@@ -190,6 +190,8 @@ def main(crop_path, method, file_index, batch_size, base_model_path, vae_model_p
         #         new_image = face_swap(new_image, face, fim, new_face, no_seamless_copy)
 
         new_image = Image.fromarray(new_image)
+        with open("../dataset/FFHQ/extended_sg/val/" + path.parts[-1].split(".")[0] + ".json") as f:
+            ext_sg = json.load(f)
 
         if ip_model.t2i_adapter is None:
             res = None
@@ -200,9 +202,7 @@ def main(crop_path, method, file_index, batch_size, base_model_path, vae_model_p
             latent_max = max(latent_shape_h, latent_shape_w)
             shape_max = max(h, w)
             # torch.save(attrs, out / "attrs.pt")
-            with open("../dataset/FFHQ/extended_sg/val2/extended_sg_" + path.parts[-1].split(".")[0] + ".json") as f:
-                ext_sg = json.load(f)
-            res = get_datamaps(ext_sg, shape_max, shape_max, os.path.join(Path("val2/"), path.parts[-1]))
+            res = get_datamaps(ext_sg, shape_max, shape_max, os.path.join(Path("val/"), path.parts[-1]))
 
         if isinstance(new_image, np.ndarray):
             new_image = Image.fromarray(new_image)

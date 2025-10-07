@@ -78,9 +78,7 @@ def main():
         revision=args.revision,
     ).to(accelerator.device)
     # freeze parameters of models to save more memory
-    set_requires_grad(False, vae, unet, text_encoder)
-    if args.use_farl:
-        set_requires_grad(False, image_encoder)
+    set_requires_grad(False, vae, unet, text_encoder, image_encoder)
 
     # ip-adapter-plus
     if args.use_t2i:
@@ -88,14 +86,16 @@ def main():
     else:
         t2i_adapter = None
     ip_adapter = init_ip_adapter(num_tokens=16, unet=unet, image_encoder=image_encoder, 
-                                 usev2=args.usev2, t2i_adapter=t2i_adapter)
+                                 usev2=args.usev2, t2i_adapter=t2i_adapter, 
+                                 ckpt_path=args.load_adapter_path, device=accelerator.device)
+
 
     # define OpenPose model and transfer it on the device used
     if args.use_t2i:
         openpose_processor = OpenposeDetector.from_pretrained('lllyasviel/ControlNet').to(accelerator.device)
 
-    if args.load_adapter_path is not None:
-        ip_adapter.load_state_dict(torch.load(args.load_adapter_path), strict=False)
+    # if args.load_adapter_path is not None:
+    #     ip_adapter.load_state_dict(torch.load(args.load_adapter_path), strict=False)
 
     # Enable TF32 for faster training on Ampere GPUs,
     # cf https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices
@@ -113,7 +113,7 @@ def main():
     # dataloader
     dataset = MyDataset(args.data_file, tokenizer=tokenizer, size=args.resolution, use_t2i=args.use_t2i,
                         controller_tfms=CLIPImageProcessor(args.image_encoder_path), 
-                        pose_processor=openpose_processor if args.use_t2i is not None else None, 
+                        pose_processor=None if not args.use_t2i else openpose_processor, 
                         use_triplets=args.use_triplets)
 
     tfms, controller_transforms = dataset.transform, dataset.controller_transforms
@@ -356,10 +356,10 @@ def log_validation(vae, text_encoder, tokenizer, unet, tfms, controller_transfor
 
             tmp = ip_model.generate(pil_image=validation_image, num_samples=args.num_validation_images,
                                     num_inference_steps=30, prompt=validation_prompt, prompt_triplets=triplets, 
-                                    seed=args.seed, negative_prompt=token, image=validation_image, strength=1.0,
+                                    seed=args.seed, negative_prompt=token, image=validation_image, strength=0.6,
                                     scale=0.8 if len(validation_prompt) > 1 else 1.0,
                                     down_block_additional_residuals=None if res is None else ipAdapterTrainer.t2i_adapter(
-                                        res.to(accelerator.device)), guidance_scale=1.0)
+                                        res.to(accelerator.device)), guidance_scale=3.0)
 
         images.extend(tmp)
 

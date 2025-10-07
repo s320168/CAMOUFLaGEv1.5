@@ -76,5 +76,5 @@ if __name__ == "__main__":
         list_relations(extended_sg, file, config)
         # save the final result in a JSON file
         output = json.dumps(extended_sg, indent=True)
-        with open(join(config.filesystem.output, "extended_sg_" + file + config.filetype.output), "w+") as f:
+        with open(join(config.filesystem.output, file + config.filetype.output), "w+") as f:
             f.write(output)

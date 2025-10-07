@@ -323,7 +323,7 @@ class IPAdapterPlusFT(IPAdapterPlus):
         image_proj_dict = None
         ip_adapter_dict = None
         t2i_adapter_dict = None
-        if image_proj == ip_adapter and ip_adapter == t2i_adapter:
+        if image_proj == ip_adapter and (ip_adapter == t2i_adapter or t2i_adapter == None):
             s_d = torch.load(image_proj, map_location="cpu")
             state_dict = {"image_proj": {}, "ip_adapter": {}, "t2i_adapter": {}}
             for key in state_dict:
@@ -338,7 +338,6 @@ class IPAdapterPlusFT(IPAdapterPlus):
             self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(image_encoder).to(dtype=torch.float16)
         else:
             self.image_encoder = image_encoder
-        if self.image_encoder is not None:
             self.clip_image_processor = controller_transforms if controller_transforms is not None else CLIPImageProcessor()
             # image proj model
             if isinstance(image_proj, (str, Path)):
@@ -351,9 +350,6 @@ class IPAdapterPlusFT(IPAdapterPlus):
                     self.image_proj_model.load_state_dict(image_proj_dict)
             else:
                 self.image_proj_model = image_proj
-        else:
-            self.image_proj_model = None
-            self.clip_image_processor = None
 
         if ip_adapter is not None:
             self.set_ip_adapter()
