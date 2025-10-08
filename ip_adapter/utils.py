@@ -143,7 +143,7 @@ class FacerAdapter(nn.Module):
         return features
 
 
-def init_ip_adapter(unet, image_encoder, num_tokens=16, t2i_adapter=None, XL=False, ckpt_path=None, usev2=False):
+def init_ip_adapter(unet, image_encoder, num_tokens=16, t2i_adapter=None, XL=False, ckpt_path=None, usev2=False, device="cpu"):
     
     if image_encoder is not None:
         if XL:
