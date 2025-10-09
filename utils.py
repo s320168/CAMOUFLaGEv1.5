@@ -338,18 +338,18 @@ class IPAdapterPlusFT(IPAdapterPlus):
             self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(image_encoder).to(dtype=torch.float16)
         else:
             self.image_encoder = image_encoder
-            self.clip_image_processor = controller_transforms if controller_transforms is not None else CLIPImageProcessor()
-            # image proj model
-            if isinstance(image_proj, (str, Path)):
-                self.num_tokens = 16
-                self.image_proj_model = self.init_proj(usev2)
-                if image_proj_dict is None:
-                    state_dict = torch.load(image_proj, map_location="cpu")
-                    self.image_proj_model.load_state_dict(state_dict["image_proj"])
-                else:
-                    self.image_proj_model.load_state_dict(image_proj_dict)
+        self.clip_image_processor = controller_transforms if controller_transforms is not None else CLIPImageProcessor()
+        # image proj model
+        if isinstance(image_proj, (str, Path)):
+            self.num_tokens = 16
+            self.image_proj_model = self.init_proj(usev2)
+            if image_proj_dict is None:
+                state_dict = torch.load(image_proj, map_location="cpu")
+                self.image_proj_model.load_state_dict(state_dict["image_proj"])
             else:
-                self.image_proj_model = image_proj
+                self.image_proj_model.load_state_dict(image_proj_dict)
+        else:
+            self.image_proj_model = image_proj
 
         if ip_adapter is not None:
             self.set_ip_adapter()
