@@ -27,6 +27,7 @@ class IPAdapterTrainer(torch.nn.Module):
         self.image_proj = image_proj_model
         self.ip_adapter = adapter_modules
         self.t2i_adapter = t2i_adapter
+        self.device = device
 
         if ckpt_path is not None:
             self.load_from_checkpoint(ckpt_path)
