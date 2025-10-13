@@ -586,14 +586,14 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Te
     features = torch.zeros((1, 64, ds_h, ds_w))
     # cycle through every object
     if "objects" in extended_sg:
-        for o in extended_sg["objects"]:
+        for o in sorted(extended_sg["objects"], key=lambda i: i["depth"]):
             if "position" in o and "x0" in o["position"] and "y0" in o["position"] and "x1" in o["position"] and "y1" in o["position"]:
                 # keep the object's bounding box
                 pos = o["position"]
                 # if the object isn't a "human face" note only its depth data brought in [0, 1) range
                 if "type" in o:
                     if o["type"] != "human face":
-                        features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"] / 255
+                        features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] = o["depth"] / 255
                         continue
                 # flatten the other attributes into a single layer dictionary
                 if "attributes" in o:
@@ -616,7 +616,7 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Te
                         else:
                             features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k] / 100
                     # add depth data (brought ini [0, 1) range) to its map highlighted by the face's bounding box
-                    features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += o["depth"] / 255
+                    features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] = o["depth"] / 255
     # add color palette datamap
     features[0, 60:63] = get_palette_datamap(image_file)
     # add body pose datamap
