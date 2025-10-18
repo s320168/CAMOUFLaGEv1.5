@@ -560,16 +560,24 @@ def get_gaze_dir_datamap(var: dict, orig_h: int, orig_w: int, h: int, w: int) ->
     # initialize output matrix
     res = torch.zeros((h, w))
     if "eye_pos" in var and "x1" in var["eye_pos"] and "y1" in var["eye_pos"] and "x2" in var["eye_pos"] and "y2" in var["eye_pos"] and "yaw" in var and "pitch" in var:
-        # corner points of the head bounding box, adjusted to the new image size
-        x1 = int(var["eye_pos"]["x1"]/orig_w*w)
-        y1 = int(var["eye_pos"]["y1"]/orig_h*h)
-        x2 = int(var["eye_pos"]["x2"]/orig_w*w)
-        y2 = int(var["eye_pos"]["y2"]/orig_h*h)
-        # bring data from (-180, +180) to (0, +360) domain and multiply it to make it an integer number
-        yaw = (var["yaw"] + 180) * 100
-        pitch = (var["pitch"] + 180) * 100
-        # pack yaw and pitch data into a single value where in the fomat pppppyyyyy and bring it into [0, 1) range
-        res[y1, x1] = res[y2, x2] = (yaw + 100000 * pitch) / 3600036000
+        img = np.zeros((h, w))
+        diag = np.sqrt(float(img.shape[0]*img.shape[1]))
+
+        eye_pos = [
+            (int(var["eye_pos"]["x1"]/orig_w*w), int(var["eye_pos"]["y1"]/orig_h*h)), 
+            (int(var["eye_pos"]["x2"]/orig_w*w), int(var["eye_pos"]["y2"]/orig_h*h))
+        ]
+        
+        dx = 0.1*diag * np.sin(var["pitch"])
+        dy = 0.1*diag * np.sin(var["yaw"])
+        for x, y in eye_pos:
+            end_p = np.array([x, y])
+            end_p[0] += dx
+            end_p[1] += dy
+            end_p = end_p.astype(int)
+            cv2.line(img, (x, y), end_p, 0.5, 1)
+            cv2.circle(img, (x, y), 1, 1.0)
+        res = torch.from_numpy(img)
     return res
 
 def get_palette_datamap(image_file: str) -> torch.Tensor:
