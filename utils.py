@@ -586,14 +586,15 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Te
     features = torch.zeros((1, 61, ds_h, ds_w))
     # cycle through every object
     if "objects" in extended_sg:
-        for o in sorted(extended_sg["objects"], key=lambda i: i["depth"]):
+        maps = torch.zeros((len(extended_sg["objects"]), 61, ds_h, ds_w))
+        for j, o in enumerate(extended_sg["objects"]):
             if "position" in o and "x0" in o["position"] and "y0" in o["position"] and "x1" in o["position"] and "y1" in o["position"]:
                 # keep the object's bounding box
                 pos = o["position"]
                 # if the object isn't a "human face" note only its depth data brought in [0, 1) range
                 if "type" in o:
                     if o["type"] != "human face":
-                        features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] = o["depth"] / 255
+                        maps[j, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] = o["depth"] / 255
                         continue
                 # flatten the other attributes into a single layer dictionary
                 if "attributes" in o:
@@ -601,24 +602,25 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Te
                     # for "human face" objects keep separately head pose and gaze direction data
                     if "head_pose" in o["attributes"]:
                         head = o["attributes"].pop("head_pose")
-                        features[0, 58] += get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
+                        maps[j, 58] = get_head_pose_datamap(head, pos, orig_h, orig_w, ds_h, ds_w)
                     if "gaze_direction" in o["attributes"]:
                         gaze = o["attributes"].pop("gaze_direction")
-                        features[0, 59] += get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
+                        maps[j, 59] = get_gaze_dir_datamap(gaze, orig_h, orig_w, ds_h, ds_w)
                     obj = flatdict.FlatDict(o["attributes"])
                     attr_keys = obj.keys()
                     # cycle through every attribute to insert it in the corresponding data map area delimited by the face's bounding box
                     for i, k in enumerate(attr_keys):
                         # face_attributes_scores and emotion_scores are already in [0, 1) range
                         if "face_attributes_scores." in k or "emotion_scores." in k:
-                            features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k]
+                            maps[j, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] = obj[k]
                         # every other remaining attribute needs to be brought in [0, 1) range
                         else:
-                            features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k] / 100
+                            maps[j, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] = obj[k] / 100
                     # add depth data (brought ini [0, 1) range) to its map highlighted by the face's bounding box
-                    features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] = o["depth"] / 255
-    # add body pose datamap
-    features[0, 60] = get_body_datamap(image_file)
-    # add color palette datamap
-    # features[0, 61:64] = get_palette_datamap(image_file)
+                    maps[j, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] = o["depth"] / 255
+        features = torch.amax(maps, dim=0)
+        # add body pose datamap
+        features[0, 60] = get_body_datamap(image_file)
+        # add color palette datamap
+        # features[0, 61:64] = get_palette_datamap(image_file)
     return features
