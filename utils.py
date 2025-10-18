@@ -519,22 +519,42 @@ class catchtime(object):
 def get_head_pose_datamap(var: dict, pos: dict, orig_h: int, orig_w: int, h: int, w: int) -> torch.Tensor:
     # initialize output matrix
     res = torch.zeros((h, w))
-    if "eye_pos" in var and "x0" in pos and "y0" in pos and "x1" in pos and "y1" in pos and "yaw" in var and "pitch" in var and "roll" in var:
-        # corner points of the head bounding box, adjusted to the new image size
-        x0 = int(pos["x0"]/orig_w*w)
-        y0 = int(pos["y0"]/orig_h*h)
-        x1 = int(pos["x1"]/orig_w*w)
-        y1 = int(pos["y1"]/orig_h*h)
-        # compute the center of the bounding box
-        center_y = (y1 + y0) // 2
-        center_x = (x1 + x0) // 2
-        # bring data from (-180, +180) to (0, +360) domain and discard their decimal part
-        yaw = int(var["yaw"] + 180)
-        pitch = int(var["pitch"] + 180)
-        roll = int(var["roll"] + 180)
-        # pack yaw, pitch and roll data into a single value where in the fomat rrrpppyyy in the center of the face's bounding box and bring it into [0, 1) range
-        res[center_y, center_x] = (yaw + 1000 * pitch + 1000000 * roll) / 360360360
+    if "x0" in pos and "y0" in pos and "x1" in pos and "y1" in pos and "yaw" in var and "pitch" in var and "roll" in var:
+        img = np.zeros((h, w))
+        x1, y1, x2, y2 = int(pos["x0"]/orig_w*w), int(pos["y0"]/orig_h*h), int(pos["x1"]/orig_w*w), int(pos["y1"]/orig_h*h)
+        tdx, tdy = x1 + 0.5 * (x2 - x1), y1 + 0.5 * (y2 - y1)
+        size = 0.5(x2 - x1)
+        draw_axis(image, var['yaw'], var['pitch'], var['roll'], tdx=c_x, tdy=c_y, size=0.5*size)
+        pitch = var['pitch'] * np.pi / 180
+        yaw = -(var['yaw'] * np.pi / 180)
+        roll = var['roll'] * np.pi / 180
+
+        if tdx != None and tdy != None:
+            tdx = tdx
+            tdy = tdy
+        else:
+            height, width = img.shape[:2]
+            tdx = width / 2
+            tdy = height / 2
+
+        # X-Axis pointing to right
+        x1 = size * (np.cos(yaw) * np.cos(roll)) + tdx
+        y1 = size * (np.cos(pitch) * np.sin(roll) + np.cos(roll) * np.sin(pitch) * np.sin(yaw)) + tdy
+
+        # Y-Axis pointing down
+        x2 = size * (-np.cos(yaw) * np.sin(roll)) + tdx
+        y2 = size * (np.cos(pitch) * np.cos(roll) - np.sin(pitch) * np.sin(yaw) * np.sin(roll)) + tdy
+
+        # Z-Axis pointing out of the screen
+        x3 = size * (np.sin(yaw)) + tdx
+        y3 = size * (-np.cos(yaw) * np.sin(pitch)) + tdy
+
+        cv2.line(img, (int(tdx), int(tdy)), (int(x1),int(y1)), 0.3, 1)
+        cv2.line(img, (int(tdx), int(tdy)), (int(x2),int(y2)), 0.7, 1)
+        cv2.line(img, (int(tdx), int(tdy)), (int(x3),int(y3)), 1.0, 1)
+        res = torch.from_numpy(img)
     return res
+
 
 def get_gaze_dir_datamap(var: dict, orig_h: int, orig_w: int, h: int, w: int) -> torch.Tensor:
     # initialize output matrix
