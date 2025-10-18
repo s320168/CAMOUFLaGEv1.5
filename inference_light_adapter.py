@@ -138,7 +138,7 @@ def main(crop_path, method, file_index, batch_size, base_model_path, vae_model_p
     ip_model = IPAdapterPlusFT(pipe, image_encoder=image_encoder_path, controller_transforms=None, image_proj=ip_ckpt,
                                ip_adapter=ip_ckpt, t2i_adapter=ip_ckpt if not skip_t2i else None, device=device, usev2=usev2)
 
-    ip_model.to(device, torch.float16)
+    ip_model.to(device, torch.float32)
 
     img_paths = list(f for f in Path(in_folder).glob("**/*.*"))
     # sort paths by name

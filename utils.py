@@ -583,7 +583,7 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Te
         orig_h = extended_sg["scene"]["dimensions"]["height"]
         orig_w = extended_sg["scene"]["dimensions"]["width"]
     # initialize the output
-    features = torch.zeros((1, 64, ds_h, ds_w))
+    features = torch.zeros((1, 61, ds_h, ds_w))
     # cycle through every object
     if "objects" in extended_sg:
         for o in sorted(extended_sg["objects"], key=lambda i: i["depth"]):
@@ -617,8 +617,8 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Te
                             features[0, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] += obj[k] / 100
                     # add depth data (brought ini [0, 1) range) to its map highlighted by the face's bounding box
                     features[0, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] = o["depth"] / 255
-    # add color palette datamap
-    features[0, 60:63] = get_palette_datamap(image_file)
     # add body pose datamap
-    features[0, 63] = get_body_datamap(image_file)
+    features[0, 60] = get_body_datamap(image_file)
+    # add color palette datamap
+    # features[0, 61:64] = get_palette_datamap(image_file)
     return features
