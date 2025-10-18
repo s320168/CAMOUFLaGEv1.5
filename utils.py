@@ -523,7 +523,7 @@ def get_head_pose_datamap(var: dict, pos: dict, orig_h: int, orig_w: int, h: int
         img = np.zeros((h, w))
         x1, y1, x2, y2 = int(pos["x0"]/orig_w*w), int(pos["y0"]/orig_h*h), int(pos["x1"]/orig_w*w), int(pos["y1"]/orig_h*h)
         tdx, tdy = x1 + 0.5 * (x2 - x1), y1 + 0.5 * (y2 - y1)
-        size = 0.5(x2 - x1)
+        size = 0.5*(x2 - x1)
         draw_axis(image, var['yaw'], var['pitch'], var['roll'], tdx=c_x, tdy=c_y, size=0.5*size)
         pitch = var['pitch'] * np.pi / 180
         yaw = -(var['yaw'] * np.pi / 180)
