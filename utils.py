@@ -524,7 +524,6 @@ def get_head_pose_datamap(var: dict, pos: dict, orig_h: int, orig_w: int, h: int
         x1, y1, x2, y2 = int(pos["x0"]/orig_w*w), int(pos["y0"]/orig_h*h), int(pos["x1"]/orig_w*w), int(pos["y1"]/orig_h*h)
         tdx, tdy = x1 + 0.5 * (x2 - x1), y1 + 0.5 * (y2 - y1)
         size = 0.5*(x2 - x1)
-        draw_axis(image, var['yaw'], var['pitch'], var['roll'], tdx=c_x, tdy=c_y, size=0.5*size)
         pitch = var['pitch'] * np.pi / 180
         yaw = -(var['yaw'] * np.pi / 180)
         roll = var['roll'] * np.pi / 180
@@ -614,7 +613,7 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Te
     features = torch.zeros((1, 61, ds_h, ds_w))
     # cycle through every object
     if "objects" in extended_sg:
-        maps = torch.zeros((len(extended_sg["objects"]), 61, ds_h, ds_w))
+        maps = torch.zeros((len(extended_sg["objects"]), 60, ds_h, ds_w))
         for j, o in enumerate(extended_sg["objects"]):
             if "position" in o and "x0" in o["position"] and "y0" in o["position"] and "x1" in o["position"] and "y1" in o["position"]:
                 # keep the object's bounding box
@@ -646,7 +645,7 @@ def get_datamaps(extended_sg: dict, h: int, w: int, image_file: str) -> torch.Te
                             maps[j, i, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] = obj[k] / 100
                     # add depth data (brought ini [0, 1) range) to its map highlighted by the face's bounding box
                     maps[j, 57, int(pos["y0"]/orig_h*ds_h):int(pos["y1"]/orig_h*ds_h+1), int(pos["x0"]/orig_w*ds_w):int(pos["x1"]/orig_w*ds_w+1)] = o["depth"] / 255
-        features = torch.amax(maps, dim=0)
+        features[0, :60] = torch.amax(maps, dim=0)
         # add body pose datamap
         features[0, 60] = get_body_datamap(image_file)
         # add color palette datamap
